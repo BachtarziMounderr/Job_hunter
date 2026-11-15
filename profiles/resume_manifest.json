@@ -1,0 +1,23 @@
+{
+  "base_profile": "profiles/default.json",
+  "resumes": [
+    {
+      "path": "Ai_Engineer_Resume.pdf",
+      "profile_id": "ai_engineer",
+      "label": "AI Engineer",
+      "target_roles": ["Junior AI Engineer", "AI Application Developer", "Machine Learning Engineer", "Python Developer", "Backend Developer"]
+    },
+    {
+      "path": "Data_Science_Resume.pdf",
+      "profile_id": "data_science",
+      "label": "Data Science",
+      "target_roles": ["Junior Data Scientist", "Machine Learning Engineer", "Data Analyst", "NLP Engineer", "Data Engineer"]
+    },
+    {
+      "path": "full_Stack_Resume.pdf",
+      "profile_id": "full_stack",
+      "label": "Full Stack",
+      "target_roles": ["Junior Full Stack Developer", "React Developer", "Python Developer", "Backend Developer", "FastAPI Developer"]
+    }
+  ]
+}

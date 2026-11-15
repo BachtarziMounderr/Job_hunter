@@ -1,0 +1,223 @@
+[
+  {
+    "name": "AI Engineer",
+    "residence_country": "DZ",
+    "work_authorization_countries": [],
+    "languages": [
+      "Arabic",
+      "French",
+      "English"
+    ],
+    "education": [
+      "Master 2 in Data Science and Artificial Intelligence",
+      "Bachelor in Information Technology"
+    ],
+    "freelance_experience_years": 2.0,
+    "skills": [
+      "Anomaly Detection",
+      "C",
+      "Computer Vision",
+      "Deep Learning",
+      "Digital Twin",
+      "FastAPI",
+      "Flask",
+      "Image Segmentation",
+      "IoT",
+      "JavaScript",
+      "LoRa",
+      "Machine Learning",
+      "MobileNetV2",
+      "MQTT",
+      "PostgreSQL",
+      "Python",
+      "PyTorch",
+      "ResNet",
+      "REST APIs",
+      "scikit-learn",
+      "SegNet",
+      "SQL",
+      "Streamlit",
+      "ThingSpeak",
+      "Transfer Learning",
+      "U-Net",
+      "VGG",
+      "XGBoost"
+    ],
+    "projects": [
+      "IoT systems",
+      "Digital Twin systems",
+      "Recommendation systems"
+    ],
+    "target_roles": [
+      "Junior AI Engineer",
+      "AI Application Developer",
+      "Machine Learning Engineer",
+      "Python Developer",
+      "Backend Developer"
+    ],
+    "target_seniority": [
+      "internship",
+      "entry-level",
+      "junior"
+    ],
+    "preferred_cities": [
+      "Algiers",
+      "Constantine",
+      "Annaba",
+      "Other Algerian cities"
+    ],
+    "remote_policy": "Only remote opportunities explicitly open to a candidate residing in Algeria; unknown eligibility requires review.",
+    "profile_id": "ai_engineer",
+    "resume_text": "",
+    "resume_sha256": null,
+    "education_level": "master",
+    "enabled": true
+  },
+  {
+    "name": "Data Science",
+    "residence_country": "DZ",
+    "work_authorization_countries": [],
+    "languages": [
+      "Arabic",
+      "French",
+      "English"
+    ],
+    "education": [
+      "Master 2 in Data Science and Artificial Intelligence",
+      "Bachelor in Information Technology"
+    ],
+    "freelance_experience_years": 2.0,
+    "skills": [
+      "Anomaly Detection",
+      "BERT",
+      "C",
+      "Computer Vision",
+      "Deep Learning",
+      "Digital Twin",
+      "FastAPI",
+      "Feature Engineering",
+      "Git",
+      "Image Segmentation",
+      "IoT",
+      "JavaScript",
+      "LoRa",
+      "Machine Learning",
+      "MobileNetV2",
+      "Model Evaluation",
+      "MQTT",
+      "NLP",
+      "NumPy",
+      "pandas",
+      "PostgreSQL",
+      "Python",
+      "PyTorch",
+      "React",
+      "Recommendation Systems",
+      "ResNet",
+      "scikit-learn",
+      "SegNet",
+      "SQL",
+      "Streamlit",
+      "ThingSpeak",
+      "Time Series",
+      "U-Net",
+      "VGG",
+      "XGBoost"
+    ],
+    "projects": [
+      "IoT systems",
+      "Digital Twin systems",
+      "Recommendation systems"
+    ],
+    "target_roles": [
+      "Junior Data Scientist",
+      "Machine Learning Engineer",
+      "Data Analyst",
+      "NLP Engineer",
+      "Data Engineer"
+    ],
+    "target_seniority": [
+      "internship",
+      "entry-level",
+      "junior"
+    ],
+    "preferred_cities": [
+      "Algiers",
+      "Constantine",
+      "Annaba",
+      "Other Algerian cities"
+    ],
+    "remote_policy": "Only remote opportunities explicitly open to a candidate residing in Algeria; unknown eligibility requires review.",
+    "profile_id": "data_science",
+    "resume_text": "",
+    "resume_sha256": null,
+    "education_level": "master",
+    "enabled": true
+  },
+  {
+    "name": "Full Stack",
+    "residence_country": "DZ",
+    "work_authorization_countries": [],
+    "languages": [
+      "Arabic",
+      "French",
+      "English"
+    ],
+    "education": [
+      "Master 2 in Data Science and Artificial Intelligence",
+      "Bachelor in Information Technology"
+    ],
+    "freelance_experience_years": 2.0,
+    "skills": [
+      "CSS",
+      "Digital Twin",
+      "FastAPI",
+      "Flask",
+      "Git",
+      "HTML",
+      "IoT",
+      "JavaScript",
+      "LoRa",
+      "Machine Learning",
+      "MQTT",
+      "pandas",
+      "PostgreSQL",
+      "Python",
+      "React",
+      "REST APIs",
+      "scikit-learn",
+      "SQL",
+      "Streamlit",
+      "XGBoost"
+    ],
+    "projects": [
+      "IoT systems",
+      "Digital Twin systems",
+      "Recommendation systems"
+    ],
+    "target_roles": [
+      "Junior Full Stack Developer",
+      "React Developer",
+      "Python Developer",
+      "Backend Developer",
+      "FastAPI Developer"
+    ],
+    "target_seniority": [
+      "internship",
+      "entry-level",
+      "junior"
+    ],
+    "preferred_cities": [
+      "Algiers",
+      "Constantine",
+      "Annaba",
+      "Other Algerian cities"
+    ],
+    "remote_policy": "Only remote opportunities explicitly open to a candidate residing in Algeria; unknown eligibility requires review.",
+    "profile_id": "full_stack",
+    "resume_text": "",
+    "resume_sha256": null,
+    "education_level": "master",
+    "enabled": true
+  }
+]

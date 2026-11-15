@@ -1,0 +1,17 @@
+{
+  "data": [
+    {
+      "slug": "synthetic-python-junior",
+      "company_name": "Example Company (synthetic)",
+      "title": "Junior Python Developer (synthetic example)",
+      "description": "<p>This is a synthetic offline example, not a real vacancy.</p><p>Python, SQL and FastAPI.</p>",
+      "remote": true,
+      "url": "https://example.com/jobs/synthetic-python-junior",
+      "tags": ["Python", "Backend"],
+      "job_types": ["full_time"],
+      "location": "Remote; eligible countries unspecified",
+      "created_at": 1794700800
+    }
+  ],
+  "links": {"next": null}
+}

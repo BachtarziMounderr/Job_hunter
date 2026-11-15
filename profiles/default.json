@@ -1,0 +1,14 @@
+{
+  "name": "Default candidate",
+  "residence_country": "DZ",
+  "work_authorization_countries": [],
+  "languages": ["Arabic", "French", "English"],
+  "education": ["Master 2 in Data Science and Artificial Intelligence", "Bachelor in Information Technology"],
+  "freelance_experience_years": 2,
+  "skills": ["Python", "SQL", "JavaScript", "Machine Learning", "Deep Learning", "NLP", "BERT", "LSTM", "Recommendation Systems", "FastAPI", "PostgreSQL", "Docker"],
+  "projects": ["IoT systems", "Digital Twin systems", "Recommendation systems"],
+  "target_roles": ["Junior AI Engineer", "Machine Learning Engineer", "NLP Engineer", "Python Developer", "Data Engineer", "Backend Developer", "AI Application Developer"],
+  "target_seniority": ["internship", "entry-level", "junior"],
+  "preferred_cities": ["Algiers", "Constantine", "Annaba", "Other Algerian cities"],
+  "remote_policy": "Only remote opportunities explicitly open to a candidate residing in Algeria; unknown eligibility requires review."
+}

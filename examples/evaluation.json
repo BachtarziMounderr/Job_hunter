@@ -1,0 +1,28 @@
+{
+  "label_status": "Illustrative labels authored during implementation; candidate review and real held-out annotations are still required.",
+  "positive_definition": "Suitable for automatic notification at the configured threshold, including geographic eligibility.",
+  "examples": [
+    {"profile_id": "ai_engineer", "job_id": 1001, "relevant": true},
+    {"profile_id": "data_science", "job_id": 1001, "relevant": true},
+    {"profile_id": "full_stack", "job_id": 1003, "relevant": true},
+    {"profile_id": "data_science", "job_id": 1005, "relevant": true},
+    {"profile_id": "ai_engineer", "job_id": 1006, "relevant": true},
+    {"profile_id": "full_stack", "job_id": 1006, "relevant": true},
+    {"profile_id": "ai_engineer", "job_id": 1002, "relevant": false},
+    {"profile_id": "data_science", "job_id": 1002, "relevant": false},
+    {"profile_id": "full_stack", "job_id": 1002, "relevant": false},
+    {"profile_id": "ai_engineer", "job_id": 1004, "relevant": false},
+    {"profile_id": "data_science", "job_id": 1004, "relevant": false},
+    {"profile_id": "full_stack", "job_id": 1004, "relevant": false},
+    {"profile_id": "ai_engineer", "job_id": 1007, "relevant": false},
+    {"profile_id": "data_science", "job_id": 1007, "relevant": false},
+    {"profile_id": "full_stack", "job_id": 1007, "relevant": false},
+    {"profile_id": "ai_engineer", "job_id": 1008, "relevant": false},
+    {"profile_id": "data_science", "job_id": 1008, "relevant": false},
+    {"profile_id": "full_stack", "job_id": 1008, "relevant": false},
+    {"profile_id": "ai_engineer", "job_id": 1003, "relevant": false},
+    {"profile_id": "data_science", "job_id": 1003, "relevant": false},
+    {"profile_id": "ai_engineer", "job_id": 1005, "relevant": false},
+    {"profile_id": "full_stack", "job_id": 1005, "relevant": false}
+  ]
+}
