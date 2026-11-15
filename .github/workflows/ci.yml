@@ -1,0 +1,54 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: job_hunter_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: ephemeral_ci_password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      TEST_POSTGRES_URL: postgresql+psycopg://test_user:ephemeral_ci_password@localhost:5432/job_hunter_test
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e '.[dev,postgres]'
+      - run: ruff check app tests scripts alembic
+      - run: ruff format --check app tests scripts alembic
+      - run: python -m pytest --cov=app --cov-report=term-missing -q
+      - run: python -m app demo > /tmp/job-hunter-demo.json
+      - run: python -m app evaluate --backend tfidf
+  container:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: docker build --tag ai-job-hunter:ci .
+      - run: docker run --rm ai-job-hunter:ci python -m app demo
+      - run: docker run --rm ai-job-hunter:ci python -m app evaluate

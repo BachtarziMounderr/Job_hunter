@@ -1,0 +1,44 @@
+services:
+  - type: cron
+    name: ai-job-hunter-daily
+    runtime: docker
+    repo: https://github.com/BachtarziMounderr/Job_hunter
+    branch: main
+    region: frankfurt
+    # The measured local model footprint exceeds 512 MB; 2 GB is the minimum viable choice here.
+    plan: 1c-2g
+    schedule: "17 7 * * *"
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PIPELINE_ENABLED
+        value: "false"
+      - key: NOTIFICATIONS_ENABLED
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: MIGRATION_DATABASE_URL
+        sync: false
+      - key: PROFILES_JSON
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: QWEN_API_KEY
+        sync: false
+      - key: QWEN_BASE_URL
+        sync: false
+      - key: QWEN_MODEL
+        value: qwen-plus
+      - key: LLM_ENABLED
+        value: "false"
+      - key: EMBEDDING_BACKEND
+        value: sentence-transformer
+      - key: MAX_NOTIFICATIONS_PER_DAY
+        value: "10"
+      - key: MINIMUM_MATCH_SCORE
+        value: "65"
+      - key: NOTIFICATION_TIMEZONE
+        value: Africa/Algiers

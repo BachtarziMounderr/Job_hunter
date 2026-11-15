@@ -1,0 +1,44 @@
+name: Daily discovery
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 7 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: job-hunter-daily
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    # Choose ONE scheduler: set this repository variable only when using GitHub instead of Render.
+    if: vars.SCHEDULER_BACKEND == 'github'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+      PROFILES_JSON: ${{ secrets.PROFILES_JSON }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      QWEN_API_KEY: ${{ secrets.QWEN_API_KEY }}
+      QWEN_BASE_URL: ${{ secrets.QWEN_BASE_URL }}
+      QWEN_MODEL: ${{ vars.QWEN_MODEL || 'qwen-plus' }}
+      LLM_ENABLED: ${{ vars.LLM_ENABLED || 'false' }}
+      PIPELINE_ENABLED: "true"
+      NOTIFICATIONS_ENABLED: ${{ vars.NOTIFICATIONS_ENABLED || 'false' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: docker build --tag ai-job-hunter:daily .
+      - name: Run with runtime secrets
+        run: >-
+          docker run --rm
+          --env DATABASE_URL --env MIGRATION_DATABASE_URL --env PROFILES_JSON
+          --env TELEGRAM_BOT_TOKEN --env TELEGRAM_CHAT_ID
+          --env QWEN_API_KEY --env QWEN_BASE_URL --env QWEN_MODEL --env LLM_ENABLED
+          --env PIPELINE_ENABLED --env NOTIFICATIONS_ENABLED
+          ai-job-hunter:daily
