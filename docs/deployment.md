@@ -12,10 +12,12 @@ Le travail consiste en un processus ponctuel qui sort après exécution. Aucun s
 web, domaine public ou polling Telegram permanent n'est nécessaire. La base Neon
 conserve les offres, scores et historiques entre deux exécutions.
 
-Les accès Render de la session étaient expirés au moment de la préparation :
-le plugin exige une reconnexion et le CLI retourne HTTP 401. Aucun service Render
-n'a donc été annoncé comme déployé. La validation du schéma JSON public du Blueprint
-a réussi ; la validation Render authentifiée reste à relancer après reconnexion.
+Le CLI Render est désormais authentifié. La validation authentifiée du Blueprint
+retourne cependant `need_payment_info` : les informations de paiement du workspace
+doivent être complétées pour ce cron payant. Aucun service Job Hunter n'a été créé.
+Le plugin Render demande encore une reconnexion indépendante, mais le CLI peut
+effectuer le déploiement dès que ce blocage de facturation est résolu. Le schéma JSON
+public du Blueprint a été validé, ainsi que le conteneur dans la CI GitHub.
 
 ## Déployer le Blueprint
 

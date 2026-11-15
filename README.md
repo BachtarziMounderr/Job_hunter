@@ -5,8 +5,9 @@ Explainable job discovery for three candidate orientations: **AI Engineering**,
 Sentence Transformers, SQLAlchemy, PostgreSQL/SQLite and outbound Telegram messages.
 
 **Version 0.2.** Working local matching and a prepared cloud execution path.
-Real Telegram/Qwen delivery still needs the user's credentials; Render deployment
-requires reconnecting the account. This repository does not claim a live service.
+Real Telegram/LLM delivery still needs the user's credentials; the authenticated
+Render deployment currently requires workspace payment information. This repository
+does not claim a live service.
 
 **[Guide en français](docs/setup-fr.md)** · [Matching design](docs/matching.md) ·
 [Sources](docs/sources.md) · [Deployment](docs/deployment.md)
