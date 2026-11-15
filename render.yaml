@@ -26,12 +26,14 @@ services:
         sync: false
       - key: TELEGRAM_CHAT_ID
         sync: false
-      - key: QWEN_API_KEY
+      - key: GROQ_API_KEY
         sync: false
-      - key: QWEN_BASE_URL
-        sync: false
-      - key: QWEN_MODEL
-        value: qwen-plus
+      - key: GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
+      - key: LLM_PROVIDER
+        value: groq
       - key: LLM_ENABLED
         value: "false"
       - key: EMBEDDING_BACKEND

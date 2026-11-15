@@ -27,7 +27,7 @@ from app.matching.embeddings import EmbeddingError
 from app.matching.evaluation import evaluate
 from app.matching.service import match_jobs, ranking_output
 from app.notifications.service import notify_matches
-from app.notifications.summary import QwenProvider
+from app.notifications.summary import create_summary_provider
 from app.notifications.telegram import TelegramClient
 from app.pipeline import PipelineSource, run_pipeline
 from app.processing.jobicy import normalize_jobicy
@@ -250,6 +250,15 @@ def main(argv: list[str] | None = None) -> int:
                     "qwen_ready": bool(
                         settings.llm_enabled and settings.qwen_api_key and settings.qwen_base_url
                     ),
+                    "llm_provider": settings.llm_provider,
+                    "llm_ready": bool(
+                        settings.llm_enabled
+                        and (
+                            (settings.groq_api_key and settings.groq_base_url)
+                            if settings.llm_provider == "groq"
+                            else (settings.qwen_api_key and settings.qwen_base_url)
+                        )
+                    ),
                 }
             )
             return 0
@@ -293,7 +302,7 @@ def main(argv: list[str] | None = None) -> int:
                         engine,
                         matches,
                         telegram=TelegramClient(settings, client) if send else None,
-                        provider=QwenProvider(settings, client) if send else None,
+                        provider=create_summary_provider(settings, client) if send else None,
                         dry_run=not send,
                     )
                     _write_json(

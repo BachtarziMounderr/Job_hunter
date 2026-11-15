@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     qwen_api_key: SecretStr | None = None
     qwen_base_url: str | None = None
     qwen_model: str = "qwen-plus"
+    llm_provider: Literal["groq", "qwen"] = "groq"
+    groq_api_key: SecretStr | None = None
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_model: str = "openai/gpt-oss-20b"
     llm_enabled: bool = False
     pipeline_enabled: bool = False
     notifications_enabled: bool = False
@@ -90,7 +94,7 @@ class Settings(BaseSettings):
             raise ValueError("Unknown notification timezone") from None
         return value
 
-    @field_validator("qwen_base_url")
+    @field_validator("qwen_base_url", "groq_base_url")
     @classmethod
     def valid_qwen_url(cls, value: str | None) -> str | None:
         from urllib.parse import urlsplit
@@ -99,13 +103,14 @@ class Settings(BaseSettings):
             return None
         url = urlsplit(value)
         if url.scheme != "https" or not url.hostname or url.username or url.password or url.query:
-            raise ValueError("QWEN_BASE_URL must be an HTTPS URL without credentials/query")
+            raise ValueError("LLM base URL must be HTTPS without credentials/query")
         return value.rstrip("/")
 
     @field_validator(
         "telegram_bot_token",
         "telegram_chat_id",
         "qwen_api_key",
+        "groq_api_key",
         "profiles_json",
         "migration_database_url",
         mode="before",

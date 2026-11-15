@@ -85,22 +85,26 @@ batch size and CPU thread count are configurable. Token-window pooling handles l
 text, and cached vectors avoid repeated inference. Initial downloads and cold CPU runs
 can take several minutes. A failed model load does not silently switch to TF-IDF.
 
-## Telegram and Qwen configuration
+## Telegram and LLM configuration
 
 Fill these fields in the private `.env` file:
 
 ```dotenv
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
-QWEN_API_KEY=
-QWEN_BASE_URL=
-QWEN_MODEL=qwen-plus
+LLM_PROVIDER=groq
+GROQ_API_KEY=
+GROQ_BASE_URL=https://api.groq.com/openai/v1
+GROQ_MODEL=openai/gpt-oss-20b
 LLM_ENABLED=false
 ```
 
-The Qwen base URL and model must match the user's provider, account and region.
-Enable `LLM_ENABLED` after configuring them. No Telegram account API ID/API hash is
+Groq keys from `console.groq.com` use the Groq settings above. Direct Qwen remains
+available with `LLM_PROVIDER=qwen` and `QWEN_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL`.
+Enable `LLM_ENABLED` after configuring the selected provider. No Telegram account API ID/API hash is
 needed for outbound Bot API messages. Start a conversation with the bot first.
+Use `python scripts/telegram_chat_id.py` after sending `/start job_hunter_setup` to
+discover the private chat ID without exposing the token in a browser URL.
 
 ```powershell
 .\.venv\Scripts\python.exe -m app doctor

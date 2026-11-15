@@ -1,4 +1,4 @@
-"""Qwen only presents structured results; scoring and eligibility stay in Python."""
+"""LLMs only present structured results; scoring and eligibility stay in Python."""
 
 import json
 import logging
@@ -6,7 +6,7 @@ import re
 from typing import Protocol
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
 from app.config import Settings
 from app.matching.service import RankedMatch
@@ -23,17 +23,27 @@ class SummaryResponse(BaseModel):
     summary: str = Field(min_length=10, max_length=600)
 
 
-class QwenProvider:
-    """OpenAI-compatible HTTP transport with a user-configurable Qwen endpoint."""
+class OpenAICompatibleProvider:
+    """Presentation-only HTTP transport shared by independent provider adapters."""
 
-    def __init__(self, settings: Settings, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        client: httpx.Client,
+        api_key: SecretStr | None,
+        base_url: str | None,
+        model: str,
+        request_options: dict | None = None,
+    ) -> None:
         self.settings = settings
         self.client = client
+        self.api_key = api_key
+        self.base_url = base_url
+        self.model = model
+        self.request_options = request_options or {}
 
     def summarize(self, match: RankedMatch) -> str | None:
-        if not (
-            self.settings.llm_enabled and self.settings.qwen_api_key and self.settings.qwen_base_url
-        ):
+        if not (self.settings.llm_enabled and self.api_key and self.base_url):
             return None
         # No CV text or candidate contact information is included in this payload.
         payload = {
@@ -56,18 +66,17 @@ class QwenProvider:
         )
         try:
             response = self.client.post(
-                self.settings.qwen_base_url + "/chat/completions",
-                headers={
-                    "Authorization": "Bearer " + self.settings.qwen_api_key.get_secret_value()
-                },
+                self.base_url + "/chat/completions",
+                headers={"Authorization": "Bearer " + self.api_key.get_secret_value()},
                 json={
-                    "model": self.settings.qwen_model,
+                    "model": self.model,
                     "temperature": 0.2,
                     "max_tokens": 300,
                     "messages": [
                         {"role": "system", "content": system},
                         {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
                     ],
+                    **self.request_options,
                 },
                 timeout=self.settings.http_timeout_seconds,
                 follow_redirects=False,
@@ -80,8 +89,41 @@ class QwenProvider:
                 return None
             return summary
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, ValidationError):
-            logger.warning("Qwen unavailable or returned an invalid summary; using Python fallback")
+            logger.warning("LLM unavailable or returned an invalid summary; using Python fallback")
             return None
+
+
+class QwenProvider(OpenAICompatibleProvider):
+    def __init__(self, settings: Settings, client: httpx.Client) -> None:
+        super().__init__(
+            settings, client, settings.qwen_api_key, settings.qwen_base_url, settings.qwen_model
+        )
+
+
+class GroqProvider(OpenAICompatibleProvider):
+    def __init__(self, settings: Settings, client: httpx.Client) -> None:
+        super().__init__(
+            settings,
+            client,
+            settings.groq_api_key,
+            settings.groq_base_url,
+            settings.groq_model,
+            request_options={
+                "include_reasoning": False,
+                "reasoning_effort": "low",
+                "max_tokens": 1024,
+            }
+            if settings.groq_model.startswith("openai/gpt-oss-")
+            else None,
+        )
+
+
+def create_summary_provider(settings: Settings, client: httpx.Client) -> LLMProvider:
+    return (
+        GroqProvider(settings, client)
+        if settings.llm_provider == "groq"
+        else QwenProvider(settings, client)
+    )
 
 
 def deterministic_summary(match: RankedMatch) -> str:

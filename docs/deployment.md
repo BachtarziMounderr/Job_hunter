@@ -41,12 +41,15 @@ avec un minimum mensuel documenté. Vérifie le prix actuel au moment de l'activ
 | `PROFILES_JSON` | Contenu complet de `private/profiles.json` |
 | `TELEGRAM_BOT_TOKEN` | Ton jeton BotFather |
 | `TELEGRAM_CHAT_ID` | Le chat de destination |
-| `QWEN_API_KEY` | Clé Qwen |
-| `QWEN_BASE_URL` | Endpoint compatible du compte/région |
+| `GROQ_API_KEY` | Clé créée sur console.groq.com |
+| `GROQ_BASE_URL` | `https://api.groq.com/openai/v1` |
 
 Les URL SQLAlchemy doivent commencer par `postgresql+psycopg://`. Les secrets sont
 injectés à l'exécution, jamais par `ARG`, dans le Dockerfile ou dans le Blueprint.
-`QWEN_MODEL` reste configurable. Qwen n'est pas nécessaire pour les embeddings.
+`GROQ_MODEL` reste configurable et `LLM_PROVIDER=groq` sélectionne ce fournisseur.
+Pour un compte Qwen direct, sélectionner `LLM_PROVIDER=qwen` et ajouter les variables
+`QWEN_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL` au service. Aucun LLM n'est nécessaire
+pour les embeddings, qui sont calculés indépendamment en Python.
 
 Le Blueprint démarre avec `PIPELINE_ENABLED=false`, `NOTIFICATIONS_ENABLED=false`
 et `LLM_ENABLED=false`. Après configuration :
