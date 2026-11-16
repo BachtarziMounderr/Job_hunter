@@ -178,6 +178,9 @@ defines the supported dependency ranges and optional `ml`, `postgres` and `dev` 
 The Docker image preloads the pinned model and runs as a non-root user. `render.yaml`
 defines a daily cron job; `.github/workflows/daily.yml` is an alternative scheduler
 that stays inactive unless `SCHEDULER_BACKEND=github` is configured.
+Manual runs offer a `smoke-test` mode that scores up to 25 recent offers and sends
+the completion report. The default `daily` mode and scheduled runs score up to
+1,000 recent offers.
 
 Use one scheduler. Hosted runs require PostgreSQL and private injected profiles.
 `PIPELINE_ENABLED` and `NOTIFICATIONS_ENABLED` are initially false so an unconfigured

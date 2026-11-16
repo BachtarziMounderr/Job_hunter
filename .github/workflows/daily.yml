@@ -1,6 +1,14 @@
 name: Daily discovery
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Search size (scheduled runs always use daily)"
+        type: choice
+        options:
+          - daily
+          - smoke-test
+        default: daily
   schedule:
     - cron: "17 7 * * *"
 
@@ -33,6 +41,7 @@ jobs:
       LLM_ENABLED: ${{ vars.LLM_ENABLED || 'false' }}
       PIPELINE_ENABLED: "true"
       NOTIFICATIONS_ENABLED: ${{ vars.NOTIFICATIONS_ENABLED || 'false' }}
+      MATCHING_MAX_JOBS: ${{ inputs.mode == 'smoke-test' && '25' || '1000' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -46,4 +55,5 @@ jobs:
           --env QWEN_API_KEY --env QWEN_BASE_URL --env QWEN_MODEL --env LLM_ENABLED
           --env LLM_PROVIDER --env GROQ_API_KEY --env GROQ_BASE_URL --env GROQ_MODEL
           --env PIPELINE_ENABLED --env NOTIFICATIONS_ENABLED
+          --env MATCHING_MAX_JOBS
           ai-job-hunter:daily
