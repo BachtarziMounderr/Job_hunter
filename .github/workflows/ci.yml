@@ -45,11 +45,29 @@ jobs:
   container:
     needs: tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: job_hunter_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: ephemeral_ci_password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - run: docker build --tag ai-job-hunter:ci .
+      - name: Check cloud entry point against PostgreSQL
+        env:
+          DATABASE_URL: postgresql+psycopg://test_user:ephemeral_ci_password@localhost:5432/job_hunter_test
+          PIPELINE_ENABLED: "true"
+        run: |
+          export PROFILES_JSON="$(python -c 'from pathlib import Path; print(Path("examples/profiles.json").read_text())')"
+          docker run --rm --network host --env DATABASE_URL --env PIPELINE_ENABLED --env PROFILES_JSON ai-job-hunter:ci python -m scripts.scheduled_run --check-only
       - run: docker run --rm ai-job-hunter:ci python -m app demo
       - run: docker run --rm ai-job-hunter:ci python -m app evaluate
   telegram:

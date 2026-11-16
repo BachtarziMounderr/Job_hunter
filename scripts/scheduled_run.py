@@ -1,5 +1,6 @@
 """Cloud entry point with persistent history, private profiles, and explicit configuration."""
 
+import argparse
 import json
 import logging
 
@@ -26,7 +27,7 @@ def _validation_error(exc: ValidationError, *, profiles: bool = False) -> None:
             )
 
 
-def _run() -> int:
+def _run(check_only: bool = False) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     try:
         settings = Settings()
@@ -81,13 +82,15 @@ def _run() -> int:
     code = main(["init-db"])
     if code:
         return code
+    if check_only:
+        return main(["doctor"])
     return main(["run", "--notify"] if settings.notifications_enabled else ["run"])
 
 
-def run() -> int:
+def run(check_only: bool = False) -> int:
     """Do not expose configuration values or private profile input in failure traces."""
     try:
-        return _run()
+        return _run(check_only=check_only)
     except Exception as exc:
         logging.error(
             "Scheduled run failed (%s). Inspect configuration with doctor.", type(exc).__name__
@@ -96,4 +99,8 @@ def run() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(run())
+    parser = argparse.ArgumentParser(description="Run or validate the cloud pipeline")
+    parser.add_argument(
+        "--check-only", action="store_true", help="Migrate and diagnose; no search/send"
+    )
+    raise SystemExit(run(check_only=parser.parse_args().check_only))

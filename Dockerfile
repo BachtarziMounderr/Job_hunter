@@ -24,4 +24,4 @@ RUN python -m pip install --no-cache-dir --no-deps . \
 
 USER appuser
 ENV EMBEDDING_LOCAL_FILES_ONLY=true
-CMD ["python", "scripts/scheduled_run.py"]
+CMD ["python", "-m", "scripts.scheduled_run"]

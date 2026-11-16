@@ -53,7 +53,8 @@ def test_cloud_profiles_errors_are_actionable_and_private(monkeypatch, caplog, p
         assert private not in caplog.text
 
 
-def test_cloud_valid_configuration_runs_migrations_then_pipeline(monkeypatch, caplog):
+@pytest.mark.parametrize("check_only", [False, True])
+def test_cloud_valid_configuration_runs_migrations_then_pipeline(monkeypatch, caplog, check_only):
     settings = Settings(
         _env_file=None,
         pipeline_enabled=True,
@@ -70,8 +71,8 @@ def test_cloud_valid_configuration_runs_migrations_then_pipeline(monkeypatch, ca
     monkeypatch.setattr(scheduled_run, "Settings", lambda: settings)
     monkeypatch.setattr(scheduled_run, "main", lambda args: calls.append(args) or 0)
     with caplog.at_level(logging.INFO):
-        assert scheduled_run.run() == 0
-    assert calls == [["init-db"], ["run", "--notify"]]
+        assert scheduled_run.run(check_only=check_only) == 0
+    assert calls == [["init-db"], ["doctor"] if check_only else ["run", "--notify"]]
     assert "GROQ_API_KEY is missing" in caplog.text
     assert "1 enabled profiles" in caplog.text
     assert "private-" not in caplog.text
