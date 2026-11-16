@@ -28,9 +28,12 @@ def test_complete_run_reports_zero_matches_and_checks_telegram_confirmation(
 
     monkeypatch.setattr(TelegramClient, "send", send)
     assert main(["--env-file", str(tmp_path / "absent.env"), "init-db"]) == 0
-    assert main(
-        ["--env-file", str(tmp_path / "absent.env"), "run", "--notify", "--input", str(payload)]
-    ) == exit_code
+    assert (
+        main(
+            ["--env-file", str(tmp_path / "absent.env"), "run", "--notify", "--input", str(payload)]
+        )
+        == exit_code
+    )
     assert len(messages) == 1
     assert "Offres distinctes analysées : 0" in messages[0]
     assert "Aucune offre ne satisfait" in messages[0]

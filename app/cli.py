@@ -321,8 +321,10 @@ def main(argv: list[str] | None = None) -> int:
                             "run_report": asdict(run_report) if run_report is not None else None,
                         }
                     )
-                    if delivery.failed or delivery.uncertain or (
-                        run_report is not None and run_report.status != "sent"
+                    if (
+                        delivery.failed
+                        or delivery.uncertain
+                        or (run_report is not None and run_report.status != "sent")
                     ):
                         return 2
                     if collection:

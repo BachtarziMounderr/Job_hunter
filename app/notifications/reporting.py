@@ -27,8 +27,7 @@ def format_run_report(
         f"Annonces reçues : {collection.records_received}.",
         f"Offres distinctes analysées : {len({m.job_id for m in matches})}.",
         f"Profils : {len(profiles)} ; comparaisons : {len(matches)}.",
-        f"Offres retenues (seuil {settings.minimum_match_score:g}/100) : "
-        f"{len(opportunities)}.",
+        f"Offres retenues (seuil {settings.minimum_match_score:g}/100) : {len(opportunities)}.",
         f"Alertes envoyées : {delivery.sent} ; déjà traitées : {delivery.skipped}.",
         "",
     ]
