@@ -8,6 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY requirements-runtime.lock ./
 RUN python -m pip install --no-cache-dir -r requirements-runtime.lock
+RUN python -c "import psycopg; print('PostgreSQL driver ready, libpq', psycopg.pq.version())"
 
 COPY pyproject.toml README.md alembic.ini ./
 COPY app ./app

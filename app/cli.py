@@ -3,7 +3,9 @@
 import argparse
 import json
 import logging
+import re
 import sys
+import traceback
 from dataclasses import asdict
 from pathlib import Path
 
@@ -351,12 +353,23 @@ def main(argv: list[str] | None = None) -> int:
         fields = [".".join(map(str, error["loc"])) for error in exc.errors(include_input=False)]
         logger.error("Validation failed for: %s", ", ".join(fields))
         return 1
+    except ImportError as exc:
+        module = getattr(exc, "name", None)
+        safe_module = (
+            module if isinstance(module, str) and re.fullmatch(r"[\w.]+", module) else "unknown"
+        )
+        logger.error("Runtime import failed for module: %s", safe_module)
+        # Frame metadata only: never exception input, source lines or local variables.
+        for frame in traceback.extract_tb(exc.__traceback__)[-4:]:
+            logger.error(
+                "Import location: %s:%s in %s", Path(frame.filename).name, frame.lineno, frame.name
+            )
+        return 1
     except (
         SQLAlchemyError,
         CommandError,
         OSError,
         ValueError,
-        ImportError,
         EmbeddingError,
         RuntimeError,
     ) as exc:
