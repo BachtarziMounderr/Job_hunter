@@ -26,6 +26,7 @@ from app.database.session import create_database_engine, transaction
 from app.matching.embeddings import EmbeddingError
 from app.matching.evaluation import evaluate
 from app.matching.service import match_jobs, ranking_output
+from app.notifications.reporting import format_run_report
 from app.notifications.service import notify_matches
 from app.notifications.summary import create_summary_provider
 from app.notifications.telegram import TelegramClient
@@ -297,23 +298,32 @@ def main(argv: list[str] | None = None) -> int:
                         )
                     _write_json(output)
                 else:
+                    telegram = TelegramClient(settings, client) if send else None
                     delivery = notify_matches(
                         settings,
                         engine,
                         matches,
-                        telegram=TelegramClient(settings, client) if send else None,
+                        telegram=telegram,
                         provider=create_summary_provider(settings, client) if send else None,
                         dry_run=not send,
                     )
+                    run_report = None
+                    if collection is not None and telegram is not None:
+                        run_report = telegram.send(
+                            format_run_report(settings, collection, matches, delivery)
+                        )
                     _write_json(
                         {
                             "collection": asdict(collection) if collection else None,
                             "matches_calculated": len(matches),
                             "delivery": asdict(delivery),
                             "dry_run": not send,
+                            "run_report": asdict(run_report) if run_report is not None else None,
                         }
                     )
-                    if delivery.failed or delivery.uncertain:
+                    if delivery.failed or delivery.uncertain or (
+                        run_report is not None and run_report.status != "sent"
+                    ):
                         return 2
                     if collection:
                         return collection.exit_code

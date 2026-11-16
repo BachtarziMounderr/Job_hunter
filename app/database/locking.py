@@ -13,7 +13,8 @@ def execution_lock(engine: Engine):
     if engine.dialect.name == "postgresql":
         with engine.connect() as connection, connection.begin():
             # Transaction locks are safe with PgBouncer and released on disconnect.
-            connection.execute(text("SET LOCAL idle_in_transaction_session_timeout = '30min'"))
+            # Stay above the daily workflow's 45-minute limit while CPU inference is active.
+            connection.execute(text("SET LOCAL idle_in_transaction_session_timeout = '60min'"))
             acquired = connection.scalar(text("SELECT pg_try_advisory_xact_lock(1095322184)"))
             if not acquired:
                 raise RuntimeError("Another pipeline is already running")

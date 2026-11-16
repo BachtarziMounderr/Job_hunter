@@ -21,6 +21,8 @@ does not claim a live service.
   education and geographic compatibility using independently testable Python algorithms.
 - Ranks jobs across profiles, preserving score breakdowns, reasons and scoring revisions.
 - Prepares one Telegram message per opportunity with a shared daily limit and durable history.
+- Sends a completion report for `run --notify`, including searches with zero suitable offers;
+  unconfirmed report delivery makes the command fail visibly.
 - Optionally asks Qwen to present the already calculated result; a Python summary is the fallback.
 
 **An LLM never generates embeddings, decides eligibility, calculates scores or ranks jobs.**
