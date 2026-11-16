@@ -2,6 +2,7 @@
 
 import re
 import unicodedata
+from functools import lru_cache
 
 SKILL_ALIASES: dict[str, tuple[str, ...]] = {
     "Python": ("python",),
@@ -87,6 +88,12 @@ def fold_text(text: str) -> str:
 
 def extract_skills(text: str) -> list[str]:
     """Extract known skills; absence means unobserved, never proof of incompetence."""
+    return list(_extract_skills(text))
+
+
+@lru_cache(maxsize=2048)
+def _extract_skills(text: str) -> tuple[str, ...]:
+    """Reuse job/profile extraction across CV comparisons without sharing mutable lists."""
     value = fold_text(text)
     found = []
     for skill, aliases in SKILL_ALIASES.items():
@@ -100,7 +107,7 @@ def extract_skills(text: str) -> list[str]:
             for alias in aliases
         ):
             found.append(skill)
-    return sorted(found, key=str.casefold)
+    return tuple(sorted(found, key=str.casefold))
 
 
 def skill_compatibility(

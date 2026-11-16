@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 from pathlib import Path
 from typing import Protocol
 
@@ -9,6 +10,8 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from app.config import Settings
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingError(RuntimeError):
@@ -114,41 +117,49 @@ class SentenceTransformerEmbedder:
         if missing:
             model = self._load()
             max_tokens = max(8, int(model.max_seq_length) - 2)
-            windows: list[str] = []
-            owners: list[int] = []
-            for index in missing:
-                tokens = model.tokenizer.encode(
-                    texts[index], add_special_tokens=False, verbose=False
-                )
-                for offset in range(0, max(1, len(tokens)), max_tokens):
-                    windows.append(
-                        model.tokenizer.decode(
-                            tokens[offset : offset + max_tokens], skip_special_tokens=True
-                        )
+            # Persist bounded groups so an interruption loses only the current group.
+            chunk_size = self.settings.embedding_batch_size
+            logger.info("Embedding cache: %d/%d texts", len(texts) - len(missing), len(texts))
+            for start in range(0, len(missing), chunk_size):
+                chunk = missing[start : start + chunk_size]
+                windows: list[str] = []
+                owners: dict[int, list[int]] = {index: [] for index in chunk}
+                for index in chunk:
+                    tokens = model.tokenizer.encode(
+                        texts[index], add_special_tokens=False, verbose=False
                     )
-                    owners.append(index)
-            try:
-                encoded = model.encode(
-                    windows,
-                    batch_size=self.settings.embedding_batch_size,
-                    convert_to_numpy=True,
-                    normalize_embeddings=True,
-                    show_progress_bar=False,
+                    for offset in range(0, max(1, len(tokens)), max_tokens):
+                        owners[index].append(len(windows))
+                        windows.append(
+                            model.tokenizer.decode(
+                                tokens[offset : offset + max_tokens], skip_special_tokens=True
+                            )
+                        )
+                try:
+                    encoded = model.encode(
+                        windows,
+                        batch_size=self.settings.embedding_batch_size,
+                        convert_to_numpy=True,
+                        normalize_embeddings=True,
+                        show_progress_bar=False,
+                    )
+                except Exception as exc:
+                    raise EmbeddingError("Local embedding computation failed") from exc
+                for index in chunk:
+                    pooled = np.mean(encoded[owners[index]], axis=0)
+                    norm = np.linalg.norm(pooled)
+                    vector = pooled / norm if norm else pooled
+                    vectors[index] = vector.astype(np.float32)
+                    # Atomic replacement prevents partially written cache entries.
+                    temporary = paths[index].with_suffix(".tmp")
+                    with temporary.open("wb") as stream:
+                        np.save(stream, vectors[index], allow_pickle=False)
+                    temporary.replace(paths[index])
+                logger.info(
+                    "Embedding progress: %d/%d texts saved",
+                    len(texts) - len(missing) + start + len(chunk),
+                    len(texts),
                 )
-            except Exception as exc:
-                raise EmbeddingError("Local embedding computation failed") from exc
-            for index in missing:
-                pooled = np.mean(
-                    [encoded[i] for i, owner in enumerate(owners) if owner == index], axis=0
-                )
-                norm = np.linalg.norm(pooled)
-                vector = pooled / norm if norm else pooled
-                vectors[index] = vector.astype(np.float32)
-                # Atomic replacement prevents partially written cache entries.
-                temporary = paths[index].with_suffix(".tmp")
-                with temporary.open("wb") as stream:
-                    np.save(stream, vectors[index], allow_pickle=False)
-                temporary.replace(paths[index])
         return np.stack(vectors)
 
 

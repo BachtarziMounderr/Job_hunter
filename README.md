@@ -83,8 +83,10 @@ work authorization and experience assumptions before using automatic filtering.
 The pinned multilingual model is
 `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`. Its model ID, revision,
 batch size and CPU thread count are configurable. Token-window pooling handles long
-text, and cached vectors avoid repeated inference. Initial downloads and cold CPU runs
-can take several minutes. A failed model load does not silently switch to TF-IDF.
+text, and cached vectors avoid repeated inference. Vectors are saved atomically after
+each small group of texts, so interrupted runs reuse completed groups. Progress logs
+contain counts only. Initial downloads and cold CPU runs can take several minutes.
+A failed model load does not silently switch to TF-IDF.
 
 ## Telegram and LLM configuration
 
