@@ -28,6 +28,7 @@ def ready_settings(settings, **changes):
         profiles_dir=Path("not-present"),
         telegram_bot_token="12345:test-token",
         telegram_chat_id="123456",
+        search_scope="legacy",
         **changes,
     )
 

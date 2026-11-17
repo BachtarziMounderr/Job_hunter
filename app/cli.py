@@ -17,10 +17,12 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from alembic import command
-from app.collectors.arbeitnow import ArbeitnowCollector
+from app.alert_plan import write_alert_plan
 from app.collectors.base import CollectionResult
-from app.collectors.jobicy import JobicyCollector
+from app.collectors.careers import CareerCollector, load_boards
+from app.collectors.gmail_alerts import GmailAlertCollector
 from app.config import Settings
+from app.database.daily import abandon_daily_run, claim_daily_run, set_daily_status
 from app.database.locking import execution_lock
 from app.database.models import JobRecord
 from app.database.repository import list_jobs
@@ -29,10 +31,11 @@ from app.matching.embeddings import EmbeddingError
 from app.matching.evaluation import evaluate
 from app.matching.service import match_jobs, ranking_output
 from app.notifications.reporting import format_run_report
-from app.notifications.service import notify_matches
+from app.notifications.service import notify_matches, select_opportunities, select_reviews
 from app.notifications.summary import create_summary_provider
 from app.notifications.telegram import TelegramClient
 from app.pipeline import PipelineSource, run_pipeline
+from app.processing.careers import normalize_career
 from app.processing.jobicy import normalize_jobicy
 from app.processing.normalizer import normalize_arbeitnow
 from app.profiles import export_profiles, import_resumes, load_profiles
@@ -85,10 +88,15 @@ def configured_sources(settings: Settings, client: httpx.Client, args) -> list[P
             )
         ]
     sources = []
-    if name in {"all", "arbeitnow"}:
-        sources.append(PipelineSource(ArbeitnowCollector(settings, client), normalize_arbeitnow))
-    if name == "jobicy" or (name == "all" and settings.enable_jobicy):
-        sources.append(PipelineSource(JobicyCollector(settings, client), normalize_jobicy))
+    if name in {"arbeitnow", "jobicy"}:
+        raise ValueError("Arbeitnow and Jobicy live searches have been disabled")
+    if name in {"all", "careers"}:
+        sources.extend(
+            PipelineSource(CareerCollector(settings, client, board), normalize_career)
+            for board in load_boards(settings.career_sources_path)
+        )
+    if name == "alerts" or (name == "all" and settings.gmail_enabled):
+        sources.append(PipelineSource(GmailAlertCollector(settings, client), normalize_career))
     return sources
 
 
@@ -99,11 +107,19 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("init-db", help="Apply Alembic migrations to the configured database")
     subparsers.add_parser("check-db", help="Execute SELECT 1 against the configured database")
-    collect_parser = subparsers.add_parser("collect", help="Collect and persist Arbeitnow postings")
+    collect_parser = subparsers.add_parser(
+        "collect", help="Collect Algeria career boards and personal alerts"
+    )
     collect_parser.add_argument(
         "--input", type=Path, help="Read an offline Arbeitnow JSON envelope"
     )
-    collect_parser.add_argument("--source", choices=["all", "arbeitnow", "jobicy"], default="all")
+    collect_parser.add_argument(
+        "--source", choices=["all", "careers", "alerts", "arbeitnow", "jobicy"], default="all"
+    )
+    alert_parser = subparsers.add_parser(
+        "alert-plan", help="Prepare saved searches and one-time alert setup"
+    )
+    alert_parser.add_argument("--output", type=Path, default=Path("private/alert-plan.html"))
     import_parser = subparsers.add_parser("import-cvs", help="Import private CV PDFs locally")
     import_parser.add_argument(
         "--manifest", type=Path, default=Path("profiles/resume_manifest.json")
@@ -131,7 +147,9 @@ def main(argv: list[str] | None = None) -> int:
         "--notify", action="store_true", help="Send to configured Telegram chat"
     )
     run_parser.add_argument("--input", type=Path)
-    run_parser.add_argument("--source", choices=["all", "arbeitnow", "jobicy"], default="all")
+    run_parser.add_argument(
+        "--source", choices=["all", "careers", "alerts", "arbeitnow", "jobicy"], default="all"
+    )
     demo_parser = subparsers.add_parser("demo", help="Synthetic demo with no network or secrets")
     demo_parser.add_argument("--semantic", action="store_true", help="Use the multilingual model")
     evaluation_parser = subparsers.add_parser("evaluate", help="Evaluate illustrative labels")
@@ -143,8 +161,17 @@ def main(argv: list[str] | None = None) -> int:
     subparsers.add_parser("stats", help="Inspect source record and canonical job counts")
     args = parser.parse_args(argv)
     engine = None
+    daily_key = None
     try:
         settings = Settings(_env_file=args.env_file)
+        if getattr(args, "input", None) or args.command in {"demo", "evaluate"}:
+            settings = settings.model_copy(update={"search_scope": "legacy"})
+        if args.command == "alert-plan":
+            if "private" not in args.output.parts:
+                raise ValueError("Write the candidate alert plan under private/")
+            write_alert_plan(settings, args.output)
+            _write_json({"alert_plan": str(args.output)})
+            return 0
         logging.basicConfig(level=settings.log_level, format="%(levelname)s %(name)s: %(message)s")
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -250,6 +277,10 @@ def main(argv: list[str] | None = None) -> int:
                     "telegram_ready": bool(
                         settings.telegram_bot_token and settings.telegram_chat_id
                     ),
+                    "search_scope": settings.search_scope,
+                    "career_boards": len(load_boards(settings.career_sources_path)),
+                    "gmail_enabled": settings.gmail_enabled,
+                    "gmail_credentials_present": bool(settings.gmail_oauth_json),
                     "qwen_ready": bool(
                         settings.llm_enabled and settings.qwen_api_key and settings.qwen_base_url
                     ),
@@ -282,6 +313,11 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID before sending")
             with execution_lock(engine), httpx.Client() as client:
                 collection = None
+                if args.command == "run" and send and settings.run_mode == "daily":
+                    daily_key = claim_daily_run(settings, engine)
+                    if daily_key is None:
+                        _write_json({"skipped": "Daily report already sent or delivery uncertain"})
+                        return 0
                 if args.command == "run":
                     collection = run_pipeline(
                         settings, engine, configured_sources(settings, client, args)
@@ -301,31 +337,78 @@ def main(argv: list[str] | None = None) -> int:
                     _write_json(output)
                 else:
                     telegram = TelegramClient(settings, client) if send else None
+                    provider = create_summary_provider(settings, client) if send else None
                     delivery = notify_matches(
                         settings,
                         engine,
                         matches,
                         telegram=telegram,
-                        provider=create_summary_provider(settings, client) if send else None,
+                        provider=provider,
                         dry_run=not send,
+                    )
+                    reviews = notify_matches(
+                        settings,
+                        engine,
+                        matches,
+                        telegram=telegram,
+                        dry_run=not send,
+                        category="review",
                     )
                     run_report = None
                     if collection is not None and telegram is not None:
+                        summary = None
+                        if settings.search_scope == "algeria":
+                            try:
+                                summary = provider.summarize_statistics(
+                                    {
+                                        "scope": "Algeria only",
+                                        "has_recommendations": bool(
+                                            select_opportunities(matches, settings)
+                                        ),
+                                        "has_review_candidates": bool(
+                                            select_reviews(matches, settings)
+                                        ),
+                                        "has_source_errors": bool(collection.sources_failed),
+                                        "alert_connection_missing": not (
+                                            settings.gmail_enabled and settings.gmail_oauth_json
+                                        ),
+                                    }
+                                )
+                            except Exception:
+                                logger.warning(
+                                    "Summary unavailable; sending the factual Python report"
+                                )
+                        if daily_key:
+                            set_daily_status(engine, daily_key, "report_sending")
                         run_report = telegram.send(
-                            format_run_report(settings, collection, matches, delivery)
+                            format_run_report(
+                                settings, collection, matches, delivery, reviews, summary
+                            )
                         )
+                        if daily_key:
+                            state = (
+                                "completed"
+                                if run_report.status == "sent"
+                                else "uncertain"
+                                if run_report.status == "uncertain"
+                                else "failed"
+                            )
+                            set_daily_status(engine, daily_key, state, run_report.message_id)
                     _write_json(
                         {
                             "collection": asdict(collection) if collection else None,
                             "matches_calculated": len(matches),
                             "delivery": asdict(delivery),
                             "dry_run": not send,
+                            "reviews": asdict(reviews),
                             "run_report": asdict(run_report) if run_report is not None else None,
                         }
                     )
                     if (
                         delivery.failed
                         or delivery.uncertain
+                        or reviews.failed
+                        or reviews.uncertain
                         or (run_report is not None and run_report.status != "sent")
                     ):
                         return 2
@@ -381,5 +464,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     finally:
         if engine is not None:
+            if daily_key:
+                try:
+                    abandon_daily_run(engine, daily_key)
+                except SQLAlchemyError:
+                    logger.error("Could not finalize daily execution status")
             engine.dispose()
     return 0

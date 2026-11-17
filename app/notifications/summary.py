@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class LLMProvider(Protocol):
     def summarize(self, match: RankedMatch) -> str | None: ...
+    def summarize_statistics(self, statistics: dict) -> str | None: ...
 
 
 class SummaryResponse(BaseModel):
@@ -64,6 +65,22 @@ class OpenAICompatibleProvider:
             "score, lien ou instruction au candidat. Réponds uniquement en JSON : "
             '{"summary":"..."}. Ne complète pas les informations manquantes.'
         )
+        return self._present(payload, system)
+
+    def summarize_statistics(self, statistics: dict) -> str | None:
+        return self._present(
+            {"calculated_search_state": statistics},
+            "Présente en deux phrases françaises les résultats déjà calculés par Python. "
+            "Ne prends aucune décision et ne modifie ni les critères ni les scores. "
+            "Distingue recommandations fermes et pistes à vérifier. Mentionne les limites "
+            "de couverture si la connexion aux alertes manque ou si une source a échoué. "
+            "Ne donne aucun chiffre, lien, conseil ou information absent des données. "
+            'Réponds uniquement en JSON : {"summary":"..."}.',
+        )
+
+    def _present(self, payload: dict, system: str) -> str | None:
+        if not (self.settings.llm_enabled and self.api_key and self.base_url):
+            return None
         try:
             response = self.client.post(
                 self.base_url + "/chat/completions",

@@ -1,39 +1,45 @@
 # AI Job Hunter
 
-Explainable job discovery for three candidate orientations: **AI Engineering**,
+Algeria-focused job discovery for three candidate orientations: **AI Engineering**,
 **Data Science** and **Full Stack Development**. Built with Python, multilingual
 Sentence Transformers, SQLAlchemy, PostgreSQL/SQLite and outbound Telegram messages.
 
-**Version 0.2.** Working local matching and a prepared cloud execution path.
-Real Telegram/LLM delivery still needs the user's credentials; the authenticated
-Render deployment currently requires workspace payment information. This repository
-does not claim a live service.
+**Version 0.3.** Official company career feeds and personal job-alert ingestion,
+with explainable matching and Telegram updates. Scheduled execution uses GitHub
+Actions and persistent PostgreSQL on Neon. Each user supplies their own credentials.
 
 **[Guide en français](docs/setup-fr.md)** · [Matching design](docs/matching.md) ·
-[Sources](docs/sources.md) · [Deployment](docs/deployment.md)
+[Sources](docs/sources.md) · [Deployment](docs/deploy-algeria.md) · [Gmail setup](docs/gmail-setup.md)
 
 ## What it does
 
-- Collects public Arbeitnow and Jobicy postings with bounded requests and source isolation.
+- Monitors verified Algerian company openings: Yassir via Lever and AYRADE's official
+  recruitment pages, plus configurable Greenhouse boards.
+- Imports personal LinkedIn, Emploitic, EmploiPartner and AlgerieJob alerts from a
+  dedicated Gmail label after one-time OAuth setup. No LinkedIn browser bot or cookies.
+- Excludes Arbeitnow/Jobicy and their historical rows from the active Algeria search.
 - Cleans HTML, validates normalized records, deduplicates source identities and retains provenance.
 - Imports three private PDF CVs into separate configurable profiles, with contact lines removed.
 - Computes multilingual embeddings locally, cosine similarity, skills coverage, seniority,
   education and geographic compatibility using independently testable Python algorithms.
 - Ranks jobs across profiles, preserving score breakdowns, reasons and scoring revisions.
+- Separates recommendations from review candidates, including incomplete alert snippets,
+  ambiguous experience and older openings still listed by their employer.
 - Prepares one Telegram message per opportunity with a shared daily limit and durable history.
 - Sends a completion report for `run --notify`, including searches with zero suitable offers;
   unconfirmed report delivery makes the command fail visibly.
-- Optionally asks Qwen to present the already calculated result; a Python summary is the fallback.
+- Optionally uses Groq or Qwen to present already calculated results; Python is the fallback.
 
 **An LLM never generates embeddings, decides eligibility, calculates scores or ranks jobs.**
-Remote does not imply worldwide: unknown eligibility is excluded from automatic delivery.
+Only confirmed Algerian positions enter the active matching pool. Unknown locations
+are counted explicitly. Global remote jobs do not satisfy this local-only scope.
 The score measures configured relevance, not the probability of being hired.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    A[Public job APIs] --> B[Source connectors]
+    A[Official company careers and personal email alerts] --> B[Algeria and role filtering]
     B --> C[Validation and normalization]
     C --> D[Deduplication and persistence]
     E[Private CV PDFs] --> F[Three JSON profiles]
@@ -41,7 +47,7 @@ flowchart TD
     F --> G
     G --> H[Explainable scores and hard eligibility filters]
     H --> I[Balanced selection and delivery reservation]
-    I --> J[Optional Qwen presentation]
+    I --> J[Optional Groq or Qwen presentation]
     J --> K[Telegram Bot API]
     K --> L[Delivery history]
 ```
@@ -134,18 +140,24 @@ calculated results, never the full CVs or candidate contact details.
 | Notification threshold | 65/100 |
 | Daily opportunity cap | 10 across all profiles |
 | Counter timezone | `Africa/Algiers` |
-| Maximum job age | 45 days |
-| Arbeitnow page budget | 1 |
-| Jobicy page budget | 2, with an hourly synchronization cache |
+| Default job age window | 45 days; older verified company listings are review candidates |
+| Search scope | Confirmed Algeria positions |
+| Review threshold | 50/100, up to 3 review notifications |
+| Career feed page/detail budget | 10 per source |
+| Gmail retrieval | Dedicated label, 14 days, up to 100 messages |
+| Schedule | 12:00 Africa/Algiers, subject to GitHub scheduling delays |
 
 See [.env.example](.env.example) for the complete configuration. Environment variables
 override dotenv files. `--env-file .env.neon` before the command selects a separate
 private PostgreSQL configuration. The weights and thresholds are initial hypotheses.
 
-Eight tables preserve sources, companies, jobs, profiles, skills, matching snapshots,
+Nine tables preserve sources, companies, jobs, profiles, skills, matching snapshots,
 per-profile notification history and shared delivery reservations. Source IDs are
 unique; exact content copies point to a canonical row. Different application URLs
-can remain separate. Missing jobs in a bounded feed are not automatically expired.
+can remain separate. Delivery groups also reconcile equal company/title/locality
+identities. Missing company jobs expire only after a complete successful snapshot.
+Daily execution history prevents duplicate reports for the same Algerian calendar date;
+ambiguous report delivery requires review rather than an automatic resend.
 
 The notifier persists its reservation before touching Telegram. Ambiguous delivery
 responses are quarantined instead of automatically retried. This avoids automatic
@@ -175,9 +187,9 @@ defines the supported dependency ranges and optional `ml`, `postgres` and `dev` 
 
 ## Hosting
 
-The Docker image preloads the pinned model and runs as a non-root user. `render.yaml`
-defines a daily cron job; `.github/workflows/daily.yml` is an alternative scheduler
-that stays inactive unless `SCHEDULER_BACKEND=github` is configured.
+The Docker image preloads the pinned model and runs as a non-root user.
+`.github/workflows/daily.yml` runs at `0 11 * * *` (12:00 Algeria), enabled with
+`SCHEDULER_BACKEND=github`. The historical Render blueprint is not the active deployment.
 Manual runs offer a `smoke-test` mode that scores up to 25 recent offers and sends
 the completion report. The default `daily` mode and scheduled runs score up to
 1,000 recent offers.
@@ -188,20 +200,17 @@ deployment does not execute against example profiles or lose history in ephemera
 Export private profiles with `python -m app export-profiles`, then store the resulting
 `private/profiles.json` as the hosting secret `PROFILES_JSON`.
 
-See [the deployment guide](docs/deployment.md) for the remaining account setup,
+See [the deployment guide](docs/deploy-algeria.md) for the account setup,
 secrets, scheduling, cost considerations and validation limits.
 
 ## Sources and current limits
 
-Listings retain their original source and canonical application URL:
-**[Arbeitnow](https://www.arbeitnow.com)** and **[Jobicy](https://jobicy.com)**.
-Their public interfaces and terms were checked on 15 November 2026; see
-[the source notes](docs/sources.md).
+Listings retain their original source and application URL. See [source access notes](docs/sources.md).
 
 Coverage is not yet comprehensive for Algeria. Geography and skill rules are
 conservative heuristics with a finite vocabulary; ambiguous cases need review.
-Greenhouse, Lever, Algerian company career pages, richer evaluation and interactive
-bot commands remain future extensions.
+Alert email layouts can change and snippets may omit requirements. Real annotated
+evaluation and expansion of the curated company registry remain ongoing work.
 
 Private PDFs, extracted profiles, secrets, caches and real job data are excluded
 from Git and Docker. This public repository contains only examples and source code.

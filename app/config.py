@@ -46,8 +46,20 @@ class Settings(BaseSettings):
     max_notifications_per_day: int = Field(default=10, ge=1, le=100)
     notification_timezone: str = "Africa/Algiers"
     notification_max_attempts: int = Field(default=3, ge=1, le=10)
-    enable_jobicy: bool = True
+    # Legacy connectors are retained for offline fixtures only.
+    enable_jobicy: bool = False
     jobicy_max_pages: int = Field(default=2, ge=1, le=5)
+    search_scope: Literal["algeria", "legacy"] = "algeria"
+    career_sources_path: Path = Path("config/career_sources.json")
+    career_max_pages: int = Field(default=10, ge=1, le=10)
+    gmail_enabled: bool = False
+    gmail_oauth_json: SecretStr | None = None
+    gmail_label: str = "JobHunter/Alerts"
+    gmail_lookback_days: int = Field(default=14, ge=1, le=45)
+    gmail_max_messages: int = Field(default=100, ge=1, le=500)
+    review_minimum_score: float = Field(default=50, ge=0, le=100)
+    max_review_notifications: int = Field(default=3, ge=0, le=10)
+    run_mode: Literal["manual", "daily", "smoke-test"] = "manual"
     source_cache_dir: Path = Path("data/source-cache")
     telegram_bot_token: SecretStr | None = None
     telegram_chat_id: SecretStr | None = None
@@ -113,6 +125,7 @@ class Settings(BaseSettings):
         "groq_api_key",
         "profiles_json",
         "migration_database_url",
+        "gmail_oauth_json",
         mode="before",
     )
     @classmethod

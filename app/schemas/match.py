@@ -20,3 +20,5 @@ class MatchResult(BaseModel):
     matching_reasons: list[str]
     incompatibility_reasons: list[str]
     role: str
+    review_reasons: list[str] = Field(default_factory=list)
+    exclusion_codes: list[str] = Field(default_factory=list)

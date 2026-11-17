@@ -1,5 +1,28 @@
 # Moteur de matching et limites
 
+## Politique actuelle : postes en Algérie
+
+La sélection active exclut les sources historiques et exige une localisation
+algérienne confirmée avant le calcul NLP. Les titres cibles des profils servent
+à générer les alertes initiales et à présélectionner les métiers dans les flux
+d'entreprises. Un poste mondial remote n'est pas assimilé à un poste en Algérie.
+
+Les sections « Requirements », « Profil recherché » et « Compétences requises »
+sont séparées des listes facultatives lorsque la structure le permet. Une
+extraction ambiguë, un extrait email ou un niveau non précisé produit une piste
+« à vérifier ». Les fourchettes d'expérience utilisent leur borne basse ; une
+contradiction entre un titre senior et des années accessibles est signalée.
+Les objectifs `target_seniority` sont pris en compte par la politique locale.
+
+Ces règles restent heuristiques : elles n'affirment pas qu'une compétence non
+mentionnée dans un CV est absente chez le candidat. Les trois orientations restent
+distinctes ; aucun savoir-faire n'est ajouté automatiquement d'un CV à un autre.
+
+Les recommandations exigent les critères fermes et le seuil normal. Les pistes
+à vérifier ont leur propre seuil et libellé, sans assouplissement géographique.
+Les décisions, motifs et scores sont conservés pour permettre une calibration
+sur de vraies annonces annotées ; aucun taux de réussite réel n'est revendiqué.
+
 ## Pipeline déterministe
 
 Le score final est une somme pondérée : sémantique 35 %, compétences 25 %,
@@ -41,7 +64,7 @@ pas une équivalence garantie avec les années d'expérience salariée demandée
 Les diplômes sont comparés par niveaux détectés ; les formulations facultatives ou
 les alternatives diplôme/expérience nécessitent encore une calibration.
 
-## Géographie : trois états
+## Géographie historique : fixtures internationales uniquement
 
 `eligible`, `ineligible` et `unknown` sont séparés. Les offres remote doivent indiquer
 un périmètre explicite : monde, pays ou région reconnue. EMEA comprend l'Algérie ;

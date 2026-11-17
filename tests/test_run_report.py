@@ -36,7 +36,7 @@ def test_complete_run_reports_zero_matches_and_checks_telegram_confirmation(
     )
     assert len(messages) == 1
     assert "Offres distinctes analysées : 0" in messages[0]
-    assert "Aucune offre ne satisfait" in messages[0]
+    assert "Aucune recommandation ferme" in messages[0]
     assert "private-test-token" not in messages[0]
     output = json.loads(capsys.readouterr().out)
     assert output["run_report"]["status"] == status

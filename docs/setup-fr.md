@@ -1,4 +1,10 @@
-# Utilisation avec tes trois CV
+# Utilisation : veille Algérie avec tes trois CV
+
+Version 0.3 : consulter le [déploiement à midi](deploy-algeria.md) et la
+[connexion Gmail initiale](gmail-setup.md). `python -m app alert-plan` prépare
+les recherches à enregistrer. Arbeitnow et Jobicy sont désactivés pour les recherches réelles.
+
+## Import des CV
 
 Les PDF restent dans le dossier local et sont exclus de Git et des images Docker.
 Le manifeste `profiles/resume_manifest.json` associe chaque fichier à son orientation.
@@ -147,5 +153,4 @@ la valeur du secret `PROFILES_JSON` sur l'hébergeur. Les PDF n'ont pas à être
 sur GitHub ni incorporés dans l'image. Qwen reçoit des extraits d'offre, des raisons
 et scores calculés, pas les CV complets ni les coordonnées du candidat.
 
-La procédure d'hébergement et les vérifications restantes sont dans
-[deployment.md](deployment.md).
+La procédure d'hébergement actuelle est dans [deploy-algeria.md](deploy-algeria.md).

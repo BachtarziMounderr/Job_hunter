@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     DateTime,
     Float,
@@ -64,6 +65,7 @@ class JobRecord(Base):
     company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"))
     title: Mapped[str] = mapped_column(String(512))
     description: Mapped[str] = mapped_column(Text)
+    description_complete: Mapped[bool] = mapped_column(Boolean, default=True)
     location: Mapped[str | None] = mapped_column(Text)
     country: Mapped[str | None] = mapped_column(String(100))
     remote_type: Mapped[str] = mapped_column(String(20))
@@ -138,6 +140,15 @@ class Notification(Base):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class DailySearchRun(Base):
+    __tablename__ = "daily_search_runs"
+    run_key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    status: Mapped[str] = mapped_column(String(30))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    report_message_id: Mapped[str | None] = mapped_column(String(100))
 
 
 class NotificationDelivery(Base):

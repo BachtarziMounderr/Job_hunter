@@ -12,18 +12,23 @@ from app.config import Settings
 from app.database.models import Notification, NotificationDelivery
 from app.database.session import transaction
 from app.matching.service import RankedMatch
+from app.matching.skills import fold_text
 from app.notifications.summary import LLMProvider, format_message
 from app.notifications.telegram import TelegramClient
+from app.processing.locality import locality_key
 
 
 def select_opportunities(matches: list[RankedMatch], settings: Settings) -> list[list[RankedMatch]]:
-    groups: dict[int, list[RankedMatch]] = {}
+    groups: dict[str, list[RankedMatch]] = {}
     for match in sorted(matches, key=lambda item: (-item.result.total_score, -item.job_id)):
         if (
             match.result.eligible_for_notification
             and match.result.total_score >= settings.minimum_match_score
         ):
-            groups.setdefault(match.job_id, []).append(match)
+            key = _job_key(match, local_only=settings.search_scope == "algeria")
+            group = groups.setdefault(key, [])
+            if not any(item.profile_name == match.profile_name for item in group):
+                group.append(match)
     return list(groups.values())
 
 
@@ -31,9 +36,63 @@ def _utc(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
-def _job_key(match: RankedMatch) -> str:
+def _job_key(match: RankedMatch, category="recommended", local_only=False) -> str:
     # Stable through description/profile changes and most canonical-row changes.
-    return hashlib.sha256(str(match.job.application_url).encode()).hexdigest()
+    identity = str(match.job.application_url)
+    if local_only and match.job.company:
+        identity = "|".join(
+            [
+                fold_text(match.job.company),
+                fold_text(match.job.title),
+                locality_key(match.job.location),
+            ]
+        )
+    if category == "review":
+        identity = "review:" + identity
+    return hashlib.sha256(identity.encode()).hexdigest()
+
+
+def select_reviews(matches: list[RankedMatch], settings: Settings) -> list[list[RankedMatch]]:
+    if settings.search_scope != "algeria":
+        return []
+    recommended = {
+        _job_key(group[0], local_only=True) for group in select_opportunities(matches, settings)
+    }
+    groups = {}
+    for match in sorted(matches, key=lambda m: -m.result.total_score):
+        if (
+            match.job.country != "DZ"
+            or match.result.geographic_status != "eligible"
+            or match.result.exclusion_codes
+        ):
+            continue
+        if match.result.total_score < settings.review_minimum_score:
+            continue
+        key = _job_key(match, local_only=True)
+        if key not in recommended:
+            group = groups.setdefault(key, [])
+            if not any(item.profile_name == match.profile_name for item in group):
+                group.append(match)
+    return list(groups.values())
+
+
+def review_message(group: list[RankedMatch]) -> str:
+    best = group[0]
+    reasons = best.result.review_reasons or ["Score inférieur au seuil de recommandation"]
+    return "\n".join(
+        [
+            "Job Hunter — À VÉRIFIER — Algérie",
+            best.job.title[:250],
+            best.job.company or "Entreprise non précisée",
+            "Lieu : " + (best.job.location or "Algérie"),
+            f"Profil : {best.profile_name} ; score indicatif {best.result.total_score:.1f}/100",
+            "Compétences communes : "
+            + (", ".join(best.result.matched_skills[:6]) or "à confirmer"),
+            "À vérifier : " + "; ".join(reasons),
+            "Cette piste nécessite une vérification avant candidature.",
+            str(best.job.application_url),
+        ]
+    )[:3900]
 
 
 @dataclass
@@ -54,17 +113,28 @@ def notify_matches(
     provider: LLMProvider | None = None,
     *,
     dry_run: bool = True,
+    category: str = "recommended",
 ) -> DeliveryReport:
     """Reserve before sending; never automatically resend 'sending' or uncertain deliveries.
 
     Telegram has no idempotency key. A lost response is quarantined rather than retried.
     This favors avoiding duplicates over guaranteed delivery. No exactly-once claim.
     """
-    groups = select_opportunities(matches, settings)
+    groups = (
+        select_reviews(matches, settings)
+        if category == "review"
+        else select_opportunities(matches, settings)
+    )
+    formatter = review_message if category == "review" else format_message
     report = DeliveryReport()
+    per_run_limit = (
+        min(settings.max_notifications_per_day, settings.max_review_notifications)
+        if category == "review"
+        else settings.max_notifications_per_day
+    )
     if dry_run:
-        for group in groups[: settings.max_notifications_per_day]:
-            report.previews.append(format_message(group))
+        for group in groups[:per_run_limit]:
+            report.previews.append(formatter(group))
         report.selected = len(report.previews)
         return report
     if telegram is None or not settings.telegram_chat_id:
@@ -87,12 +157,12 @@ def notify_matches(
             )
             or 0
         )
-    budget = max(0, settings.max_notifications_per_day - used)
+    budget = min(per_run_limit, max(0, settings.max_notifications_per_day - used))
     for group in groups:
         if report.selected >= budget:
             break
         best = group[0]
-        key = _job_key(best)
+        key = _job_key(best, category, settings.search_scope == "algeria")
         try:
             with transaction(engine) as session:
                 delivery = session.scalar(
@@ -132,13 +202,15 @@ def notify_matches(
             continue
         report.selected += 1
         summary = None
-        if provider:
+        if provider and category != "review":
             try:
                 summary = provider.summarize(best)
             except Exception:
                 # Presentation cannot block delivery or influence the selected results.
                 summary = None
-        outcome = telegram.send(format_message(group, summary))
+        outcome = telegram.send(
+            review_message(group) if category == "review" else format_message(group, summary)
+        )
         with transaction(engine) as session:
             delivery = session.get(NotificationDelivery, delivery_id)
             delivery.last_error = outcome.error

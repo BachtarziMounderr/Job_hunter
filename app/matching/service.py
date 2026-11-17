@@ -15,6 +15,7 @@ from app.database.session import transaction
 from app.matching.embeddings import Embedder, cosine_matrix, create_embedder
 from app.matching.scoring import score_job
 from app.matching.skills import extract_skills
+from app.processing.locality import algeria_status
 from app.profiles import load_profiles
 from app.schemas.job import Job
 from app.schemas.match import MatchResult
@@ -51,9 +52,21 @@ def load_matching_jobs(engine: Engine, settings: Settings) -> list[tuple[int, Jo
             .where(
                 JobRecord.status == "active",
                 JobRecord.duplicate_of_id.is_(None),
+                ~JobSource.name.in_(["arbeitnow", "jobicy"])
+                if settings.search_scope == "algeria"
+                else True,
+                JobRecord.country == "DZ" if settings.search_scope == "algeria" else True,
                 or_(
                     JobRecord.published_at >= cutoff,
                     (JobRecord.published_at.is_(None) & (JobRecord.first_seen_at >= cutoff)),
+                    (
+                        (
+                            JobSource.name.like("lever:%")
+                            | JobSource.name.like("greenhouse:%")
+                            | JobSource.name.like("ayrade:%")
+                        )
+                        & (JobRecord.last_seen_at >= cutoff)
+                    ),
                 ),
             )
             .order_by(
@@ -85,7 +98,9 @@ def load_matching_jobs(engine: Engine, settings: Settings) -> list[tuple[int, Jo
                     ),
                 )
             )
-        return jobs
+    if settings.search_scope == "algeria":
+        jobs = [(key, job) for key, job in jobs if algeria_status(job) == "eligible"]
+    return jobs
 
 
 @dataclass(frozen=True)
@@ -114,31 +129,45 @@ def match_jobs(
     rules_hash = hashlib.sha256(
         b"".join(
             (Path(__file__).parent / file).read_bytes()
-            for file in ["scoring.py", "classifiers.py", "geography.py", "skills.py", "service.py"]
+            for file in [
+                "scoring.py",
+                "classifiers.py",
+                "geography.py",
+                "skills.py",
+                "service.py",
+                "local_policy.py",
+            ]
         )
     ).hexdigest()
     signature = json.dumps(
         {
-            "algorithm": "matching-v2",
+            "algorithm": "matching-v3-" + settings.search_scope,
             "rules_hash": rules_hash,
             "embedding": backend.version,
             "weights": settings.score_weights.model_dump(),
+            "age_limit_days": settings.job_max_age_days,
         },
         sort_keys=True,
     )
-    engine_version = "v2:" + hashlib.sha256(signature.encode()).hexdigest()
+    engine_version = "v3:" + hashlib.sha256(signature.encode()).hexdigest()
     results = []
     with transaction(engine) as session:
         records = [save_profile(session, profile) for profile in profiles]
         job_ids = [job_id for job_id, _ in jobs]
         profile_ids = [record.id for record in records]
         previous = {
-            (item.job_id, item.profile_id, item.job_content_hash, item.profile_content_hash): item
+            (
+                item.job_id,
+                item.profile_id,
+                item.job_content_hash,
+                item.profile_content_hash,
+                item.engine_version,
+            ): item
             for item in session.scalars(
                 select(JobMatch).where(
                     JobMatch.job_id.in_(job_ids),
                     JobMatch.profile_id.in_(profile_ids),
-                    JobMatch.engine_version == engine_version,
+                    JobMatch.engine_version.in_([engine_version, engine_version + ":aged"]),
                 )
             )
         }
@@ -158,16 +187,31 @@ def match_jobs(
             )
             for profile_index, (profile, record) in enumerate(zip(profiles, records, strict=True)):
                 result = score_job(
-                    job, profile, float(similarities[profile_index, index]), settings.score_weights
+                    job,
+                    profile,
+                    float(similarities[profile_index, index]),
+                    settings.score_weights,
+                    local_only=settings.search_scope == "algeria",
+                    age_limit_days=settings.job_max_age_days,
                 )
-                match = previous.get((job_id, record.id, job.content_hash, record.content_hash))
+                revision = engine_version + (
+                    ":aged"
+                    if any(
+                        reason.startswith("Publication ancienne")
+                        for reason in result.review_reasons
+                    )
+                    else ""
+                )
+                match = previous.get(
+                    (job_id, record.id, job.content_hash, record.content_hash, revision)
+                )
                 if match is None:
                     match = JobMatch(
                         job_id=job_id,
                         profile_id=record.id,
                         job_content_hash=job.content_hash,
                         profile_content_hash=record.content_hash,
-                        engine_version=engine_version,
+                        engine_version=revision,
                         total_score=result.total_score,
                         details=result.model_dump()
                         | {

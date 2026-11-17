@@ -1,5 +1,33 @@
 # Sources vérifiées
 
+## Périmètre actuel : Algérie uniquement (novembre 2026)
+
+- **Yassir** : API publique Lever, localisations algériennes sélectionnées avant
+  persistance et matching. Les autres pays du même tableau d'offres sont exclus.
+- **AYRADE** : pages officielles de recrutement ; robots.txt consulté, chemins et
+  redirections limités au domaine officiel, requêtes bornées et espacées.
+- **Greenhouse** : connecteur disponible pour ajouter des tableaux d'entreprises
+  vérifiés dans `config/career_sources.json` ; aucune entreprise non vérifiée n'est activée.
+- **LinkedIn / Emploitic / EmploiPartner / AlgerieJob** : alertes personnelles lues
+  via Gmail, après activation par le candidat. Aucun robot de connexion LinkedIn,
+  cookie ou mot de passe de ces plateformes n'est utilisé. Voir [Gmail](gmail-setup.md).
+
+Les tableaux d'entreprises sont maintenus dans `config/career_sources.json`.
+Les offres absentes d'un snapshot complet sans erreur peuvent être expirées ;
+un résultat tronqué, mal formé ou indisponible ne déclenche pas cette opération.
+Une annonce ancienne encore affichée est signalée pour vérification plutôt que
+présentée automatiquement comme une opportunité récente.
+
+Documentation : [Lever](https://github.com/lever/postings-api),
+[Greenhouse](https://docs.greenhouse.io/job-board.html),
+[Yassir](https://yassir.com/career/jobs/), [AYRADE](https://www.ayrade.com/recrutement/).
+
+## Sources historiques, désactivées pour les recherches réelles
+
+Les sections suivantes documentent les anciennes fixtures et intégrations.
+Arbeitnow et Jobicy ne sont plus interrogés par la commande de recherche réelle,
+et leurs lignes historiques sont exclues du matching Algérie.
+
 ## Arbeitnow
 
 Le connecteur initial reste disponible. Voir [arbeitnow.md](arbeitnow.md) pour le

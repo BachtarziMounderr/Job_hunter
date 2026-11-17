@@ -16,6 +16,7 @@ COPY alembic ./alembic
 COPY profiles/default.json ./profiles/default.json
 COPY examples ./examples
 COPY scripts ./scripts
+COPY config ./config
 RUN python -m pip install --no-cache-dir --no-deps . \
     && python scripts/cache_model.py \
     && useradd --create-home appuser \

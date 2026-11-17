@@ -1,4 +1,7 @@
-# Hébergement : Render + Neon
+# Archive : ancien hébergement Render + Neon
+
+> Le déploiement actuel est décrit dans [Algérie + GitHub Actions](deploy-algeria.md).
+> Les horaires et procédures Render ci-dessous sont historiques, pas la configuration active.
 
 ## État préparé
 

@@ -30,6 +30,7 @@ class Job(BaseModel):
     title: str = Field(min_length=1, max_length=512)
     company: str | None = Field(default=None, min_length=1, max_length=512)
     description: str = ""
+    description_complete: bool = True
     location: str | None = None
     country: str | None = None
     remote_type: RemoteType = RemoteType.UNKNOWN

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<title>Alertes Job Hunter Algérie</title>
+<style>
+body { font:17px system-ui; max-width:1000px; margin:40px auto; padding:20px;
+       color:#182634; background:#f7faf9; }
+table { border-collapse:collapse; width:100%; }
+td, th { padding:12px; border:1px solid #cbd5d1; text-align:left; }
+a { color:#075d49; } li { margin:10px 0; }
+</style>
+<h1>Configurer les alertes Algérie</h1>
+<p>Une configuration initiale ; la lecture quotidienne sera ensuite automatique.</p>
+<ol>
+<li>Ouvrir les recherches, vérifier le pays Algérie, puis activer les alertes quotidiennes par email.</li>
+<li>Dans Gmail, créer le libellé <strong>JobHunter/Alerts</strong> et un filtre qui y range
+les alertes des expéditeurs officiels.</li>
+<li>Connecter Gmail avec
+<code>python scripts/setup_gmail.py --client private/google-client.json</code>.</li>
+<li>Le programme lit les alertes et envoie le bilan sur Telegram.
+Les extraits incomplets seront signalés « à vérifier ».</li>
+</ol>
+<table><thead><tr><th>Recherche</th><th>Profils concernés</th><th>LinkedIn</th><th>Emploitic</th>
+</tr></thead><tbody><!--ROWS--></tbody></table>
+</html>

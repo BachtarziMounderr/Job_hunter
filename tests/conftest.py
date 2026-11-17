@@ -15,7 +15,9 @@ def isolated_profiles(tmp_path, monkeypatch):
 
 @pytest.fixture
 def db(tmp_path):
-    settings = Settings(_env_file=None, database_url=f"sqlite:///{tmp_path / 'test.db'}")
+    settings = Settings(
+        _env_file=None, database_url=f"sqlite:///{tmp_path / 'test.db'}", search_scope="legacy"
+    )
     command.upgrade(migration_config(settings), "head")
     engine = create_database_engine(settings)
     yield engine, settings

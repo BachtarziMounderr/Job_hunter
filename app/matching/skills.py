@@ -6,6 +6,9 @@ from functools import lru_cache
 
 SKILL_ALIASES: dict[str, tuple[str, ...]] = {
     "Python": ("python",),
+    "PHP": ("php",),
+    "Odoo": ("odoo",),
+    "WordPress": ("wordpress",),
     "SQL": ("sql",),
     "JavaScript": ("javascript", "js"),
     "TypeScript": ("typescript",),

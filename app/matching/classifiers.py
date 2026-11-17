@@ -24,10 +24,18 @@ def classify_role(title: str) -> str:
         return "ai_ml"
     if re.search(r"\b(data|donnees|business intelligence|analyste de donnees)\b", value):
         return "data"
+    if re.search(r"\b(android|ios|mobile)\b", value) and "react" not in value:
+        return "mobile"
+    if re.search(
+        r"\b(devops|platform engineer|system engineer|network|reseau|cyber|support technique|"
+        r"administration des systemes|support erp)\b",
+        value,
+    ):
+        return "infrastructure"
     if re.search(r"\b(front[ -]?end|react|vue|angular)\b", value):
         return "frontend"
     if re.search(
-        r"\b(back[ -]?end|python|fastapi|software|logiciel|developpeur|developer|web)\b", value
+        r"\b(back[ -]?end|python|fastapi|software|logiciel|developpeur|developer|web|odoo)\b", value
     ):
         return "backend"
     return "other"
@@ -56,10 +64,14 @@ def classify_seniority(job: Job) -> tuple[str, int | None]:
         level = "unknown"
     text = fold_text(job.description)
     requirements = re.findall(
-        r"\b(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\s*\+?\s*(?:years?|ans?|annees?)"
+        r"\b(\d{1,2})(?:\s*(?:[-–—]|a|to)\s*\d{1,2})?\s*\+?\s*(?:years?|ans?|annees?)"
         r"(?:\s+of)?\s+(?:professional\s+|relevant\s+|commercial\s+|d[' ]?)?"
         r"(?:experience|experiences)",
         text,
+    )
+    requirements += re.findall(
+        r"\b(\d{1,2})(?:\s*(?:[-–—]|a|to)\s*\d{1,2})?\s*\+?\s*(?:years?|ans?|annees?)",
+        fold_text(job.experience_level),
     )
     # Benefits/company age do not match the experience-specific expression.
     minimum = max(map(int, requirements)) if requirements else None
