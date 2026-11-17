@@ -10,6 +10,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.collectors.base import CollectionResult
+from app.collectors.public_http import PublicFeedError, get_public_json
 from app.config import Settings
 from app.processing.locality import location_country
 
@@ -55,17 +56,13 @@ class CareerCollector:
                 else {"content": "true"}
             )
             try:
-                response = self.client.get(
-                    url,
-                    params=params,
-                    timeout=self.settings.http_timeout_seconds,
-                    follow_redirects=False,
-                )
-                response.raise_for_status()
-                payload = response.json()
+                payload = get_public_json(self.client, url, params, self.settings)
                 rows = payload if self.board.kind == "lever" else payload["jobs"]
                 if not isinstance(rows, list):
                     raise ValueError("Expected jobs array")
+            except PublicFeedError as exc:
+                result.error = f"Company feed unavailable ({exc}); no expiration inferred"
+                break
             except (httpx.HTTPError, ValueError, KeyError, TypeError):
                 result.error = "Company feed unavailable or malformed; no expiration inferred"
                 break

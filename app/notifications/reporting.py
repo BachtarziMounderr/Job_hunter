@@ -64,6 +64,11 @@ def format_run_report(
             f"Sources en échec : {collection.sources_failed} ; "
             f"annonces invalides : {collection.invalid_records}."
         )
+        if settings.search_scope == "algeria" and collection.sources_failed:
+            lines.append(
+                "Des offres déjà connues peuvent être analysées ; "
+                "leur source n'a pas forcément pu être revérifiée aujourd'hui."
+            )
     if collection.limited_sources:
         lines.append("Collecte plafonnée pour : " + ", ".join(collection.limited_sources))
     if settings.search_scope == "algeria":

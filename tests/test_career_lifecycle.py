@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import httpx
+import pytest
 from sqlalchemy import select
 
 from app.collectors.ayrade import AyradeCollector, ayrade_record, recruitment_links
@@ -101,3 +102,47 @@ def test_cross_source_locality_aliases_do_not_duplicate_review_candidates(db):
     matches = match_jobs(settings, engine, TfidfEmbedder())
     assert len(matches) == 2
     assert len(select_reviews(matches, settings)) == 1
+
+
+def test_company_feed_retries_transient_network_failure(monkeypatch):
+    from app.collectors.careers import CareerBoard, CareerCollector
+
+    calls = []
+    monkeypatch.setattr("app.collectors.public_http.time.sleep", lambda _: None)
+
+    def serve(request):
+        calls.append(request)
+        if len(calls) == 1:
+            raise httpx.ReadTimeout("private provider details", request=request)
+        return httpx.Response(200, json=[])
+
+    with httpx.Client(transport=httpx.MockTransport(serve)) as client:
+        result = CareerCollector(
+            Settings(_env_file=None),
+            client,
+            CareerBoard(kind="lever", board="Example", company="Example"),
+        ).collect()
+    assert len(calls) == 2 and result.error is None and result.pages_fetched == 1
+
+
+def test_company_feed_does_not_retry_access_denial_or_long_cooldown(monkeypatch):
+    from app.collectors.careers import CareerBoard, CareerCollector
+
+    monkeypatch.setattr("app.collectors.public_http.time.sleep", lambda _: pytest.fail("No retry"))
+    for status, headers, diagnostic in [
+        (403, {}, "HTTP 403"),
+        (429, {"Retry-After": "120"}, "cooldown"),
+    ]:
+        calls = []
+
+        def serve(request, calls=calls, status=status, headers=headers):
+            calls.append(request)
+            return httpx.Response(status, headers=headers)
+
+        with httpx.Client(transport=httpx.MockTransport(serve)) as client:
+            result = CareerCollector(
+                Settings(_env_file=None),
+                client,
+                CareerBoard(kind="lever", board="Example", company="Example"),
+            ).collect()
+        assert len(calls) == 1 and diagnostic in result.error
