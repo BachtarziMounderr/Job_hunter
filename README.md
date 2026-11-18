@@ -98,6 +98,13 @@ A failed model load does not silently switch to TF-IDF.
 
 ## Telegram and LLM configuration
 
+Daily searches now send one Telegram message with a self-contained HTML report,
+profile filters, score explanations and application links. Successful workflow
+status messages are muted; failures still reach Telegram.
+See [reading results and applying (French)](docs/results-fr.md).
+`python -m app report` regenerates a report from saved jobs; add `--send` to
+deliver it once. `python -m app run --notify` collects fresh jobs first.
+
 Fill these fields in the private `.env` file:
 
 ```dotenv
@@ -138,11 +145,12 @@ calculated results, never the full CVs or candidate contact details.
 | Embedding backend | Local Sentence Transformers |
 | Score weights | Semantic 35%, skills 25%, experience 20%, education 10%, location 10% |
 | Notification threshold | 65/100 |
-| Daily opportunity cap | 10 across all profiles |
+| Telegram delivery | One HTML digest; all analysed jobs and application links included |
+| Legacy individual opportunity cap | 10 across all profiles |
 | Counter timezone | `Africa/Algiers` |
 | Default job age window | 45 days; older verified company listings are review candidates |
 | Search scope | Confirmed Algeria positions |
-| Review threshold | 50/100, up to 3 review notifications |
+| Review threshold | 50/100; all review candidates appear in the digest |
 | Career feed page/detail budget | 10 per source |
 | Gmail retrieval | Dedicated label, 14 days, up to 100 messages |
 | Schedule | 12:00 Africa/Algiers, subject to GitHub scheduling delays |

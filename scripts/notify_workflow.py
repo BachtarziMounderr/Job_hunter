@@ -29,6 +29,9 @@ def notify(env, open_request=None) -> int:
             if results and all(value == "skipped" for value in results.values())
             else "RÉUSSI"
         )
+        if state in {"RÉUSSI", "IGNORÉ"} and env.get("NOTIFY_SUCCESS", "false").lower() != "true":
+            print("Successful workflow notification muted; results are in the daily report.")
+            return 0
         url = (
             f"{env.get('GITHUB_SERVER_URL', 'https://github.com')}/"
             f"{env.get('GITHUB_REPOSITORY', '')}/actions/runs/{env.get('GITHUB_RUN_ID', '')}"

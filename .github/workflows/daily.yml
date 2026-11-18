@@ -42,6 +42,7 @@ jobs:
       LLM_ENABLED: ${{ vars.LLM_ENABLED || 'false' }}
       PIPELINE_ENABLED: "true"
       NOTIFICATIONS_ENABLED: ${{ vars.NOTIFICATIONS_ENABLED || 'false' }}
+      NOTIFICATION_FORMAT: digest
       MATCHING_MAX_JOBS: ${{ inputs.mode == 'smoke-test' && '25' || '1000' }}
       SEARCH_SCOPE: algeria
       GMAIL_ENABLED: ${{ vars.GMAIL_ENABLED || 'false' }}
@@ -60,7 +61,7 @@ jobs:
           --env TELEGRAM_BOT_TOKEN --env TELEGRAM_CHAT_ID
           --env QWEN_API_KEY --env QWEN_BASE_URL --env QWEN_MODEL --env LLM_ENABLED
           --env LLM_PROVIDER --env GROQ_API_KEY --env GROQ_BASE_URL --env GROQ_MODEL
-          --env PIPELINE_ENABLED --env NOTIFICATIONS_ENABLED
+          --env PIPELINE_ENABLED --env NOTIFICATIONS_ENABLED --env NOTIFICATION_FORMAT
           --env MATCHING_MAX_JOBS
           --env SEARCH_SCOPE --env GMAIL_ENABLED --env GMAIL_LABEL --env GMAIL_OAUTH_JSON --env RUN_MODE
           ai-job-hunter:daily

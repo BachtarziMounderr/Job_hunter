@@ -31,7 +31,12 @@ from app.matching.embeddings import EmbeddingError
 from app.matching.evaluation import evaluate
 from app.matching.service import match_jobs, ranking_output
 from app.notifications.reporting import format_run_report
-from app.notifications.service import notify_matches, select_opportunities, select_reviews
+from app.notifications.service import (
+    DeliveryReport,
+    notify_matches,
+    select_opportunities,
+    select_reviews,
+)
 from app.notifications.summary import create_summary_provider
 from app.notifications.telegram import TelegramClient
 from app.pipeline import PipelineSource, run_pipeline
@@ -39,6 +44,7 @@ from app.processing.careers import normalize_career
 from app.processing.jobicy import normalize_jobicy
 from app.processing.normalizer import normalize_arbeitnow
 from app.profiles import export_profiles, import_resumes, load_profiles
+from app.results import digest_buttons, digest_caption, write_results
 
 logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -140,6 +146,11 @@ def main(argv: list[str] | None = None) -> int:
         "notify", help="Preview Telegram messages; --send delivers"
     )
     notify_parser.add_argument("--send", action="store_true")
+    report_parser = subparsers.add_parser(
+        "report", help="Openable HTML results from saved jobs, optionally one Telegram message"
+    )
+    report_parser.add_argument("--output", type=Path)
+    report_parser.add_argument("--send", action="store_true")
     run_parser = subparsers.add_parser(
         "run", help="Collect, match all CVs, and prepare/deliver Telegram"
     )
@@ -305,8 +316,8 @@ def main(argv: list[str] | None = None) -> int:
                 report = run_pipeline(settings, engine, configured_sources(settings, client, args))
             _write_json(asdict(report))
             return report.exit_code
-        elif args.command in {"match", "notify", "run"}:
-            send = (args.command == "notify" and args.send) or (
+        elif args.command in {"match", "notify", "run", "report"}:
+            send = (args.command in {"notify", "report"} and args.send) or (
                 args.command == "run" and args.notify
             )
             if send and not (settings.telegram_bot_token and settings.telegram_chat_id):
@@ -338,25 +349,29 @@ def main(argv: list[str] | None = None) -> int:
                 else:
                     telegram = TelegramClient(settings, client) if send else None
                     provider = create_summary_provider(settings, client) if send else None
-                    delivery = notify_matches(
-                        settings,
-                        engine,
-                        matches,
-                        telegram=telegram,
-                        provider=provider,
-                        dry_run=not send,
-                    )
-                    reviews = notify_matches(
-                        settings,
-                        engine,
-                        matches,
-                        telegram=telegram,
-                        dry_run=not send,
-                        category="review",
-                    )
+                    digest = args.command == "report" or settings.notification_format == "digest"
+                    delivery, reviews = DeliveryReport(), DeliveryReport()
+                    if not digest:
+                        delivery = notify_matches(
+                            settings,
+                            engine,
+                            matches,
+                            telegram=telegram,
+                            provider=provider,
+                            dry_run=not send,
+                        )
+                        reviews = notify_matches(
+                            settings,
+                            engine,
+                            matches,
+                            telegram=telegram,
+                            dry_run=not send,
+                            category="review",
+                        )
                     run_report = None
+                    report_path = None
+                    summary = None
                     if collection is not None and telegram is not None:
-                        summary = None
                         if settings.search_scope == "algeria":
                             try:
                                 summary = provider.summarize_statistics(
@@ -378,11 +393,23 @@ def main(argv: list[str] | None = None) -> int:
                                 logger.warning(
                                     "Summary unavailable; sending the factual Python report"
                                 )
+                    if digest:
+                        report_path = getattr(args, "output", None) or settings.results_report_path
+                        entries = write_results(settings, matches, report_path, collection, summary)
+                    if telegram is not None and (collection is not None or digest):
                         if daily_key:
                             set_daily_status(engine, daily_key, "report_sending")
-                        run_report = telegram.send(
-                            format_run_report(
-                                settings, collection, matches, delivery, reviews, summary
+                        run_report = (
+                            telegram.send_document(
+                                report_path,
+                                digest_caption(settings, entries, collection),
+                                digest_buttons(entries),
+                            )
+                            if digest
+                            else telegram.send(
+                                format_run_report(
+                                    settings, collection, matches, delivery, reviews, summary
+                                )
                             )
                         )
                         if daily_key:
@@ -402,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
                             "dry_run": not send,
                             "reviews": asdict(reviews),
                             "run_report": asdict(run_report) if run_report is not None else None,
+                            "results_file": str(report_path) if report_path else None,
                         }
                     )
                     if (

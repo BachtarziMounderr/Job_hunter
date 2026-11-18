@@ -18,6 +18,7 @@ def test_complete_run_reports_zero_matches_and_checks_telegram_confirmation(
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "private-test-token")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "123456")
     monkeypatch.setenv("LLM_ENABLED", "false")
+    monkeypatch.setenv("NOTIFICATION_FORMAT", "individual")
     payload = tmp_path / "empty-source.json"
     payload.write_text('{"data": []}', encoding="utf-8")
     messages = []

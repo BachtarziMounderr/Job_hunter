@@ -48,6 +48,8 @@ interrogés et le bilan signale clairement l'absence des alertes LinkedIn/Emploi
    Un passage d'une piste à une recommandation peut produire une nouvelle alerte.
 5. Les résultats CI et les échecs de la recherche sont envoyés par un job Telegram
    indépendant de l'application, y compris si le build du conteneur échoue.
+   Les statuts de réussite sont désormais silencieux : les offres sont regroupées
+   dans un seul rapport HTML joint au message quotidien. Voir [lire les résultats](results-fr.md).
 
 Les offres historiques Arbeitnow/Jobicy sont conservées pour audit mais exclues de
 la sélection et des nouvelles notifications. L'évaluation synthétique hors réseau

@@ -70,6 +70,12 @@ jobs:
           docker run --rm --network host --env DATABASE_URL --env PIPELINE_ENABLED --env PROFILES_JSON ai-job-hunter:ci python -m scripts.scheduled_run --check-only
       - run: docker run --rm ai-job-hunter:ci python -m app demo
       - run: docker run --rm ai-job-hunter:ci python -m app evaluate
+      - name: Render portable results from packaged template
+        run: >-
+          docker run --rm ai-job-hunter:ci python -c
+          "from pathlib import Path; from app.config import Settings;
+          from app.results import write_results;
+          write_results(Settings(_env_file=None), [], Path('/tmp/results.html'))"
   telegram:
     if: ${{ always() }}
     needs: [tests, container]

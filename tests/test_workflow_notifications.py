@@ -17,6 +17,7 @@ def environment(result):
         "WORKFLOW_NAME": "CI",
         "GITHUB_REPOSITORY": "owner/job-hunter",
         "GITHUB_RUN_ID": "42",
+        "NOTIFY_SUCCESS": "true",
     }
 
 
@@ -49,3 +50,17 @@ def test_fork_without_secrets_does_not_attempt_to_send():
         raise AssertionError("No request should be attempted")
 
     assert notify({}, forbidden) == 0
+
+
+def test_success_is_silent_by_default_but_failure_is_still_reported():
+    calls = []
+
+    def send(request, **kwargs):
+        calls.append(request)
+        return io.BytesIO(b'{"ok":true,"result":{"message_id":1}}')
+
+    env = environment("success")
+    env.pop("NOTIFY_SUCCESS")
+    assert notify(env, send) == 0 and not calls
+    env["JOB_RESULTS_JSON"] = json.dumps({"discover": {"result": "failure"}})
+    assert notify(env, send) == 0 and len(calls) == 1

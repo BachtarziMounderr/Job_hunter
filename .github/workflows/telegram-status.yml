@@ -33,4 +33,5 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           JOB_RESULTS_JSON: ${{ inputs.job_results }}
           WORKFLOW_NAME: ${{ inputs.workflow_name }}
+          NOTIFY_SUCCESS: ${{ vars.TELEGRAM_WORKFLOW_SUCCESSES || 'false' }}
         run: python scripts/notify_workflow.py

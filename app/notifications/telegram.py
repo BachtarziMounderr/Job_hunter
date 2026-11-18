@@ -1,6 +1,7 @@
 """Telegram Bot API client that distinguishes rejection from ambiguous delivery."""
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 import httpx
@@ -25,15 +26,38 @@ class TelegramClient:
 
     def send(self, message: str) -> SendOutcome:
         """One HTTP attempt. Retrying an uncertain response can duplicate a message."""
+        return self._request(
+            "sendMessage",
+            json={
+                "chat_id": self.settings.telegram_chat_id.get_secret_value(),
+                "text": message[:3900],
+                "link_preview_options": {"is_disabled": True},
+            },
+        )
+
+    def send_document(self, path: Path, caption: str, buttons: list[list[dict]]) -> SendOutcome:
+        """Upload the entire report as one Telegram message, with direct job buttons."""
+        import json
+
+        data = {
+            "chat_id": self.settings.telegram_chat_id.get_secret_value(),
+            "caption": caption[:1000],
+        }
+        if buttons:
+            data["reply_markup"] = json.dumps({"inline_keyboard": buttons})
+        with path.open("rb") as document:
+            return self._request(
+                "sendDocument",
+                data=data,
+                files={"document": (path.name, document, "text/html")},
+            )
+
+    def _request(self, method: str, **kwargs) -> SendOutcome:
         token = self.settings.telegram_bot_token.get_secret_value()
         try:
             response = self.client.post(
-                f"https://api.telegram.org/bot{token}/sendMessage",
-                json={
-                    "chat_id": self.settings.telegram_chat_id.get_secret_value(),
-                    "text": message[:3900],
-                    "link_preview_options": {"is_disabled": True},
-                },
+                f"https://api.telegram.org/bot{token}/{method}",
+                **kwargs,
                 timeout=self.settings.http_timeout_seconds,
                 follow_redirects=False,
             )

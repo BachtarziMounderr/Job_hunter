@@ -300,8 +300,10 @@ def test_daily_cli_only_collects_once_after_confirmed_report(db, monkeypatch, ca
     )
     monkeypatch.setattr(
         TelegramClient,
-        "send",
-        lambda self, text: messages.append(text) or SendOutcome("sent", message_id="1"),
+        "send_document",
+        lambda self, path, text, buttons: (
+            messages.append(text) or SendOutcome("sent", message_id="1")
+        ),
     )
     assert main(["run", "--notify"]) == 0
     sent = len(messages)

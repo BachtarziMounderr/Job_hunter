@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     max_notifications_per_day: int = Field(default=10, ge=1, le=100)
     notification_timezone: str = "Africa/Algiers"
     notification_max_attempts: int = Field(default=3, ge=1, le=10)
+    notification_format: Literal["digest", "individual"] = "digest"
+    results_report_path: Path = Path("reports/latest.html")
     # Legacy connectors are retained for offline fixtures only.
     enable_jobicy: bool = False
     jobicy_max_pages: int = Field(default=2, ge=1, le=5)
