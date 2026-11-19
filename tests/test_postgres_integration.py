@@ -37,5 +37,43 @@ def test_disposable_postgres_migrations_upsert_and_distributed_lock():
             stats = save_jobs(session, [normalize_arbeitnow(posting(slug="postgres-test"))])
             assert stats.updated == 1
             assert session.scalar(select(JobRecord).where(JobRecord.external_id == "postgres-test"))
+        # Exercise PostgreSQL JSON filtering/ordering, not only SQLite's JSON dialect.
+        from fastapi.testclient import TestClient
+
+        from app.api import create_app
+        from app.database.models import Opportunity
+
+        with transaction(engine) as session:
+            job = session.scalar(select(JobRecord).where(JobRecord.external_id == "postgres-test"))
+            opportunity = session.scalar(
+                select(Opportunity).where(Opportunity.identity_key == "b" * 64)
+            )
+            if opportunity is None:
+                opportunity = Opportunity(
+                    identity_key="b" * 64,
+                    job_id=job.id,
+                    snapshot={
+                        "title": "PostgreSQL dashboard test",
+                        "company": "Test Company",
+                        "location": "Alger",
+                        "best_profile": "Test Profile",
+                        "score": 80.0,
+                        "application_url": "https://example.com/test-job",
+                    },
+                )
+                session.add(opportunity)
+            opportunity.status = "available"
+        with TestClient(create_app(settings, engine=engine, prepare=False)) as client:
+            response = client.get("/api/dashboard?q=dashboard&profile=Test%20Profile")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["total"] == 1 and "Test Profile" in data["profiles"]
+            row = data["items"][0]
+            response = client.post(
+                f"/api/opportunities/{row['id']}/status",
+                json={"status": "applied"},
+                headers={"X-Job-Hunter-CSRF": data["csrf_token"]},
+            )
+            assert response.status_code == 200 and response.json()["status"] == "applied"
     finally:
         engine.dispose()

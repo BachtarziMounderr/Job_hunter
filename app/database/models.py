@@ -175,3 +175,38 @@ class NotificationDelivery(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     telegram_message_id: Mapped[str | None] = mapped_column(String(100))
     last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class Opportunity(Base):
+    """One durable opportunity across searches, profiles and source aliases."""
+
+    __tablename__ = "opportunities"
+    __table_args__ = (
+        CheckConstraint("status IN ('available', 'applied', 'dismissed')", name="status"),
+        CheckConstraint(
+            "notification_status IN ('pending', 'sending', 'sent', 'uncertain')",
+            name="notification_status",
+        ),
+        Index("ix_opportunities_status_discovered", "status", "discovered_at"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    identity_key: Mapped[str] = mapped_column(String(64), unique=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"))
+    status: Mapped[str] = mapped_column(String(20), default="available")
+    notification_status: Mapped[str] = mapped_column(String(20), default="pending")
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSON)
+    is_current: Mapped[bool] = mapped_column(Boolean, default=True)
+    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SearchExecution(Base):
+    __tablename__ = "search_executions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    mode: Mapped[str] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(20), default="running")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)

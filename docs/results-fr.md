@@ -1,8 +1,14 @@
 # Lire les résultats et candidater
 
+Le [centre de contrôle React + FastAPI](dashboard-fr.md) conserve désormais les
+offres et les statuts de candidature. Les rapports Telegram ne contiennent que
+les opportunités pas encore annoncées. Les explications ci-dessous restent utiles
+pour interpréter les scores et les anciens rapports complets.
+
 La veille quotidienne envoie **un seul document HTML sur Telegram**, accompagné
 d'un résumé court et de boutons vers les huit premières annonces à explorer.
-Le rapport contient **toutes les offres analysées**, y compris celles déjà vues.
+Le rapport quotidien contient **uniquement les offres pas encore annoncées**.
+Les anciennes offres restent consultables dans le dashboard.
 Les messages techniques de réussite CI et Daily discovery sont masqués par défaut.
 Les échecs et annulations restent signalés sur Telegram.
 

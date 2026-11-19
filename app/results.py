@@ -177,8 +177,10 @@ def write_results(
     output: Path,
     collection: PipelineReport | None = None,
     summary: str | None = None,
+    *,
+    entries_override: list[ResultEntry] | None = None,
 ) -> list[ResultEntry]:
-    entries = result_entries(matches, settings)
+    entries = result_entries(matches, settings) if entries_override is None else entries_override
     now = datetime.now(UTC).astimezone(ZoneInfo(settings.notification_timezone))
     names = sorted({m.profile_name for m in matches})
     recommended = sum(e.category == "recommended" for e in entries)
@@ -224,12 +226,19 @@ def write_results(
         "SUMMARY": f"<p>{escape(summary)}</p>" if summary else "",
         "COLLECTION": (
             f"{collection.records_received} annonces reçues ; "
-            f"{collection.irrelevant_records} hors métiers cibles avant analyse."
+            f"{collection.irrelevant_records} hors métiers cibles avant analyse. "
+            "Ce rapport présente uniquement les offres pas encore annoncées."
             if collection
             else "Données enregistrées, sans nouvelle recherche."
         ),
         "MINIMUM": f"{settings.minimum_match_score:g}",
         "REVIEW_MINIMUM": f"{settings.review_minimum_score:g}",
+        "EMPTY_TEXT": (
+            "Aucune nouvelle offre à proposer. Les offres déjà reçues restent dans ton dashboard."
+            if entries_override is not None and not entries
+            else "Aucune offre pour ces filtres. "
+            "Essaie « Tous les profils » ou l’onglet « Toutes »."
+        ),
         "WEIGHTS": ", ".join(
             f"{label} ({getattr(settings.score_weights, key) * 100:g} %)"
             for key, label in [
@@ -259,8 +268,8 @@ def digest_caption(settings: Settings, entries: list[ResultEntry], collection=No
     review = sum(e.category == "review" for e in entries)
     lines = [
         f"Job Hunter · Algérie · {day}",
-        f"{firm} recommandation(s) · {review} piste(s) à vérifier",
-        f"{len(entries)} offres analysées · liens et profils dans le rapport joint.",
+        f"{firm} nouvelle(s) recommandation(s) · {review} nouvelle(s) piste(s) à vérifier",
+        f"{len(entries)} nouvelle(s) offre(s) · liens et profils dans le rapport joint.",
     ]
     if collection and collection.exit_code:
         lines.append("Collecte partielle : certaines sources sont indisponibles.")
@@ -279,6 +288,8 @@ def digest_caption(settings: Settings, entries: list[ResultEntry], collection=No
         lines.append(
             "À vérifier ne signifie pas refusé : lis les points signalés avant de candidater."
         )
+    if not entries:
+        lines.append("Aucune nouvelle offre. Les offres déjà proposées restent dans ton dashboard.")
     return "\n".join(lines)[:1000]
 
 

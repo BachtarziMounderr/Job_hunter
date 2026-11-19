@@ -39,6 +39,16 @@ from app.notifications.service import (
 )
 from app.notifications.summary import create_summary_provider
 from app.notifications.telegram import TelegramClient
+from app.opportunities import (
+    begin_search,
+    complete_search,
+    entry_key,
+    fail_unfinished_search,
+    finish_announcements,
+    pending_entries,
+    reserve_announcements,
+    sync_opportunities,
+)
 from app.pipeline import PipelineSource, run_pipeline
 from app.processing.careers import normalize_career
 from app.processing.jobicy import normalize_jobicy
@@ -173,6 +183,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     engine = None
     daily_key = None
+    search_key = None
+    reserved_keys = []
+    announcement_attempted = False
+    new_keys = []
     try:
         settings = Settings(_env_file=args.env_file)
         if getattr(args, "input", None) or args.command in {"demo", "evaluate"}:
@@ -330,10 +344,16 @@ def main(argv: list[str] | None = None) -> int:
                         _write_json({"skipped": "Daily report already sent or delivery uncertain"})
                         return 0
                 if args.command == "run":
+                    if settings.search_scope == "algeria":
+                        search_key = begin_search(engine, settings.run_mode)
                     collection = run_pipeline(
                         settings, engine, configured_sources(settings, client, args)
                     )
                 matches = match_jobs(settings, engine)
+                if settings.search_scope == "algeria":
+                    new_keys = sync_opportunities(settings, engine, matches)
+                    if search_key:
+                        complete_search(engine, search_key, collection, len(matches), len(new_keys))
                 if args.command == "match":
                     if not 1 <= args.limit <= 1000:
                         parser.error("--limit must be between 1 and 1000")
@@ -350,6 +370,11 @@ def main(argv: list[str] | None = None) -> int:
                     telegram = TelegramClient(settings, client) if send else None
                     provider = create_summary_provider(settings, client) if send else None
                     digest = args.command == "report" or settings.notification_format == "digest"
+                    fresh = (
+                        pending_entries(settings, engine, matches)
+                        if digest and settings.search_scope == "algeria"
+                        else None
+                    )
                     delivery, reviews = DeliveryReport(), DeliveryReport()
                     if not digest:
                         delivery = notify_matches(
@@ -372,17 +397,22 @@ def main(argv: list[str] | None = None) -> int:
                     report_path = None
                     summary = None
                     if collection is not None and telegram is not None:
-                        if settings.search_scope == "algeria":
+                        if settings.search_scope == "algeria" and (fresh is None or fresh):
                             try:
                                 summary = provider.summarize_statistics(
                                     {
                                         "scope": "Algeria only",
                                         "has_recommendations": bool(
                                             select_opportunities(matches, settings)
-                                        ),
+                                        )
+                                        if fresh is None
+                                        else any(e.category == "recommended" for e in fresh),
                                         "has_review_candidates": bool(
                                             select_reviews(matches, settings)
-                                        ),
+                                        )
+                                        if fresh is None
+                                        else any(e.category == "review" for e in fresh),
+                                        "new_opportunities_only": fresh is not None,
                                         "has_source_errors": bool(collection.sources_failed),
                                         "alert_connection_missing": not (
                                             settings.gmail_enabled and settings.gmail_oauth_json
@@ -395,10 +425,21 @@ def main(argv: list[str] | None = None) -> int:
                                 )
                     if digest:
                         report_path = getattr(args, "output", None) or settings.results_report_path
-                        entries = write_results(settings, matches, report_path, collection, summary)
+                        if telegram is not None and fresh is not None:
+                            reserved_keys = reserve_announcements(settings, engine, fresh)
+                            fresh = [e for e in fresh if entry_key(e, settings) in reserved_keys]
+                        entries = write_results(
+                            settings,
+                            matches,
+                            report_path,
+                            collection,
+                            summary,
+                            entries_override=fresh,
+                        )
                     if telegram is not None and (collection is not None or digest):
                         if daily_key:
                             set_daily_status(engine, daily_key, "report_sending")
+                        announcement_attempted = True
                         run_report = (
                             telegram.send_document(
                                 report_path,
@@ -412,6 +453,9 @@ def main(argv: list[str] | None = None) -> int:
                                 )
                             )
                         )
+                        if reserved_keys:
+                            finish_announcements(engine, reserved_keys, run_report.status)
+                            reserved_keys = []
                         if daily_key:
                             state = (
                                 "completed"
@@ -430,6 +474,7 @@ def main(argv: list[str] | None = None) -> int:
                             "reviews": asdict(reviews),
                             "run_report": asdict(run_report) if run_report is not None else None,
                             "results_file": str(report_path) if report_path else None,
+                            "new_opportunities": len(new_keys),
                         }
                     )
                     if (
@@ -492,6 +537,20 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     finally:
         if engine is not None:
+            if reserved_keys:
+                try:
+                    finish_announcements(
+                        engine,
+                        reserved_keys,
+                        "uncertain" if announcement_attempted else "retryable",
+                    )
+                except SQLAlchemyError:
+                    logger.error("Could not finalize opportunity announcement status")
+            if search_key:
+                try:
+                    fail_unfinished_search(engine, search_key)
+                except SQLAlchemyError:
+                    logger.error("Could not finalize search history")
             if daily_key:
                 try:
                     abandon_daily_run(engine, daily_key)

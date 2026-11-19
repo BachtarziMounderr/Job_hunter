@@ -1,5 +1,21 @@
 # AI Job Hunter
 
+## React + FastAPI control centre
+
+```powershell
+.\scripts\start-dashboard.ps1
+```
+
+Open **http://127.0.0.1:8000** for the local dashboard backed by the existing Neon
+database. A **Candidater** click saves the application status and opens the offer.
+Application history survives daily refreshes and can be undone. Persistent
+opportunity identities prevent repeated suggestions across searches and profiles;
+Telegram digests now contain only opportunities not already announced.
+
+GitHub Actions continues the daily search at **12:00 Africa/Algiers**, independently
+of your PC. The open dashboard refreshes every 30 seconds. No paid hosting service
+is created. See [the complete French dashboard guide](docs/dashboard-fr.md).
+
 Algeria-focused job discovery for three candidate orientations: **AI Engineering**,
 **Data Science** and **Full Stack Development**. Built with Python, multilingual
 Sentence Transformers, SQLAlchemy, PostgreSQL/SQLite and outbound Telegram messages.
@@ -98,7 +114,7 @@ A failed model load does not silently switch to TF-IDF.
 
 ## Telegram and LLM configuration
 
-Daily searches now send one Telegram message with a self-contained HTML report,
+Daily searches now send one Telegram message with a self-contained HTML report of new opportunities,
 profile filters, score explanations and application links. Successful workflow
 status messages are muted; failures still reach Telegram.
 See [reading results and applying (French)](docs/results-fr.md).
@@ -145,7 +161,7 @@ calculated results, never the full CVs or candidate contact details.
 | Embedding backend | Local Sentence Transformers |
 | Score weights | Semantic 35%, skills 25%, experience 20%, education 10%, location 10% |
 | Notification threshold | 65/100 |
-| Telegram delivery | One HTML digest; all analysed jobs and application links included |
+| Telegram delivery | One HTML digest; only opportunities not previously announced |
 | Legacy individual opportunity cap | 10 across all profiles |
 | Counter timezone | `Africa/Algiers` |
 | Default job age window | 45 days; older verified company listings are review candidates |
@@ -159,11 +175,13 @@ See [.env.example](.env.example) for the complete configuration. Environment var
 override dotenv files. `--env-file .env.neon` before the command selects a separate
 private PostgreSQL configuration. The weights and thresholds are initial hypotheses.
 
-Nine tables preserve sources, companies, jobs, profiles, skills, matching snapshots,
+Eleven tables preserve sources, companies, jobs, profiles, skills, matching snapshots,
 per-profile notification history and shared delivery reservations. Source IDs are
 unique; exact content copies point to a canonical row. Different application URLs
 can remain separate. Delivery groups also reconcile equal company/title/locality
 identities. Missing company jobs expire only after a complete successful snapshot.
+The opportunity inbox and search execution history retain manual application states
+and announcement status independently of refreshed matching snapshots.
 Daily execution history prevents duplicate reports for the same Algerian calendar date;
 ambiguous report delivery requires review rather than an automatic resend.
 

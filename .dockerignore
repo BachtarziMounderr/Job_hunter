@@ -18,3 +18,5 @@ __pycache__
 .coverage
 *.egg-info
 .qodo
+frontend/node_modules
+frontend/dist

@@ -36,7 +36,7 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: pyproject.toml
-      - run: python -m pip install -e '.[dev,postgres]'
+      - run: python -m pip install -r requirements-api.lock -e '.[dev,postgres,api]'
       - run: ruff check app tests scripts alembic
       - run: ruff format --check app tests scripts alembic
       - run: python -m pytest --cov=app --cov-report=term-missing -q
@@ -78,7 +78,7 @@ jobs:
           write_results(Settings(_env_file=None), [], Path('/tmp/results.html'))"
   telegram:
     if: ${{ always() }}
-    needs: [tests, container]
+    needs: [tests, container, frontend]
     uses: ./.github/workflows/telegram-status.yml
     with:
       job_results: ${{ toJSON(needs) }}
@@ -86,3 +86,18 @@ jobs:
     secrets:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend

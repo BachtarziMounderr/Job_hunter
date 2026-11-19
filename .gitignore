@@ -31,3 +31,5 @@ model-cache/
 *.lock
 !requirements*.lock
 .neon/
+node_modules/
+frontend/dist/
