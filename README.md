@@ -1,80 +1,171 @@
-# AI Job Hunter
+# Job Hunter
 
-## React + FastAPI control centre
+**Explainable job discovery and application tracking for the Algerian market.**
 
-```powershell
-.\scripts\start-dashboard.ps1
-```
+[![CI](https://github.com/BachtarziMounderr/Job_hunter/actions/workflows/ci.yml/badge.svg)](https://github.com/BachtarziMounderr/Job_hunter/actions/workflows/ci.yml)
 
-Open **http://127.0.0.1:8000** for the local dashboard backed by the existing Neon
-database. A **Candidater** click saves the application status and opens the offer.
-Application history survives daily refreshes and can be undone. Persistent
-opportunity identities prevent repeated suggestions across searches and profiles;
-Telegram digests now contain only opportunities not already announced.
+Job Hunter turns company career listings into a personal, actionable shortlist.
+It compares openings against separate **AI Engineering**, **Data Science** and
+**Full Stack Development** CV profiles, explains each match, and keeps application
+states in a **React + FastAPI** dashboard.
 
-GitHub Actions continues the daily search at **12:00 Africa/Algiers**, independently
-of your PC. The open dashboard refreshes every 30 seconds. No paid hosting service
-is created. See [the complete French dashboard guide](docs/dashboard-fr.md).
+The daily pipeline runs on **GitHub Actions**, stores its history in **PostgreSQL
+on Neon**, and sends a **Telegram digest containing only previously unannounced
+opportunities**. The dashboard runs locally and shares the same database.
 
-Algeria-focused job discovery for three candidate orientations: **AI Engineering**,
-**Data Science** and **Full Stack Development**. Built with Python, multilingual
-Sentence Transformers, SQLAlchemy, PostgreSQL/SQLite and outbound Telegram messages.
+[Dashboard guide — FR](docs/dashboard-fr.md) · [Matching design](docs/matching.md) ·
+[Source access](docs/sources.md) · [Cloud setup](docs/deploy-algeria.md)
 
-**Version 0.3.** Official company career feeds and personal job-alert ingestion,
-with explainable matching and Telegram updates. Scheduled execution uses GitHub
-Actions and persistent PostgreSQL on Neon. Each user supplies their own credentials.
+## Results from a real execution
 
-**[Guide en français](docs/setup-fr.md)** · [Matching design](docs/matching.md) ·
-[Sources](docs/sources.md) · [Deployment](docs/deploy-algeria.md) · [Gmail setup](docs/gmail-setup.md)
+The **19 November 2026** validation run processed live company feeds and the three
+configured CV orientations:
 
-## What it does
+| Pipeline output | Observed result |
+| --- | ---: |
+| Listings collected | **72** |
+| Relevant openings retained for matching | **9** |
+| CV profiles compared | **3** |
+| Job–profile comparisons | **27** |
+| Opportunities requiring review | **6** |
+| Recommendations passing every criterion without reservations | **0** |
+| Previously announced opportunities sent again on the repeat run | **0** |
 
-- Monitors verified Algerian company openings: Yassir via Lever and AYRADE's official
-  recruitment pages, plus configurable Greenhouse boards.
-- Imports personal LinkedIn, Emploitic, EmploiPartner and AlgerieJob alerts from a
-  dedicated Gmail label after one-time OAuth setup. No LinkedIn browser bot or cookies.
-- Excludes Arbeitnow/Jobicy and their historical rows from the active Algeria search.
-- Cleans HTML, validates normalized records, deduplicates source identities and retains provenance.
-- Imports three private PDF CVs into separate configurable profiles, with contact lines removed.
-- Computes multilingual embeddings locally, cosine similarity, skills coverage, seniority,
-  education and geographic compatibility using independently testable Python algorithms.
-- Ranks jobs across profiles, preserving score breakdowns, reasons and scoring revisions.
-- Separates recommendations from review candidates, including incomplete alert snippets,
-  ambiguous experience and older openings still listed by their employer.
-- Prepares one Telegram message per opportunity with a shared daily limit and durable history.
-- Sends a completion report for `run --notify`, including searches with zero suitable offers;
-  unconfirmed report delivery makes the command fail visibly.
-- Optionally uses Groq or Qwen to present already calculated results; Python is the fallback.
+The six review candidates remained accessible in the dashboard. Their scores and
+reservations help the user decide which original job descriptions to read before
+applying. A high score can still require review when experience is unclear or a
+listing is old.
 
-**An LLM never generates embeddings, decides eligibility, calculates scores or ranks jobs.**
-Only confirmed Algerian positions enter the active matching pool. Unknown locations
-are counted explicitly. Global remote jobs do not satisfy this local-only scope.
-The score measures configured relevance, not the probability of being hired.
+### Companies and roles surfaced
+
+| Company | Connected source | Examples found during validation |
+| --- | --- | --- |
+| **Yassir** | Public Lever job feed | Full Stack Engineer (Node.js & React); Marketing Data Analyst; Data Analyst (Financial Services); Frontend Engineer |
+| **AYRADE** | Official recruitment pages | Intégrateur Odoo |
+
+The same execution received **64 listings from Yassir** and **8 from AYRADE**;
+respectively **7** and **2** entered the matching stage after role filtering.
+These are dated observations; current listings change with the employers' feeds.
+Source connectors are configured in [career_sources.json](config/career_sources.json).
+
+The release also passed **153 automated tests** on GitHub, including PostgreSQL
+integration, with successful React and Docker builds. Browser checks covered
+application redirects, persistent status changes, undo, filters and mobile layouts.
+
+Evidence: [validated CI run](https://github.com/BachtarziMounderr/Job_hunter/actions/runs/44524846988)
+and [live pipeline run](https://github.com/BachtarziMounderr/Job_hunter/actions/runs/44524934303).
+
+## Technical stack
+
+| Layer | Technologies and responsibility |
+| --- | --- |
+| Interface | **React 19, Vite, JavaScript, responsive CSS** — search, profile filters, available offers and application history |
+| API | **FastAPI, Pydantic, Uvicorn** — validated state transitions, server-side filtering and pagination |
+| Matching | **Sentence Transformers, PyTorch CPU, NumPy, scikit-learn** — multilingual embeddings, cosine similarity and an explicit TF-IDF demo baseline |
+| Persistence | **SQLAlchemy 2, PostgreSQL / Neon, SQLite, Alembic** — relational history, migrations and durable opportunity identities |
+| Automation | **GitHub Actions, Docker** — scheduled collection, preloaded model, non-root runtime and CI checks |
+| Delivery | **Telegram Bot API, HTTPX** — one digest, direct application links and delivery confirmation |
+| Optional integrations | **Groq / Qwen** for presentation; **Gmail OAuth** for personal job-alert ingestion |
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    A[Official company careers and personal email alerts] --> B[Algeria and role filtering]
-    B --> C[Validation and normalization]
-    C --> D[Deduplication and persistence]
-    E[Private CV PDFs] --> F[Three JSON profiles]
-    D --> G[Local multilingual embeddings and Python rules]
-    F --> G
-    G --> H[Explainable scores and hard eligibility filters]
-    H --> I[Balanced selection and delivery reservation]
-    I --> J[Optional Groq or Qwen presentation]
-    J --> K[Telegram Bot API]
-    K --> L[Delivery history]
+    Schedule["GitHub Actions: daily search"] --> Collect["Company feeds and optional email alerts"]
+    Collect --> Normalize["Validation, Algeria filtering and deduplication"]
+    Profiles["Private CVs: three separate profiles"] --> Match["Local multilingual embeddings and Python rules"]
+    Normalize --> Match
+    Match --> Store["PostgreSQL: scores, opportunities and search history"]
+    Store --> Digest["Unannounced opportunities"]
+    Digest --> Telegram["Telegram digest and application links"]
+    Store --> API["FastAPI"]
+    API --> Dashboard["React control centre"]
+    Dashboard --> State["Application and dismissal status"]
+    State --> Store
 ```
 
-Repositories isolate SQL access. Alembic owns schema migrations. A complete run is
-a bounded CLI process, so a web server or permanent Telegram polling process is unnecessary.
-SQLite runs locally without credentials; PostgreSQL retains history in hosted execution.
+The scheduled process handles collection and inference independently of the web
+server. FastAPI serves the dashboard and its API from the same origin; the open
+interface refreshes every **30 seconds**. Daily searches continue while the user's
+computer is off.
 
-## Quick demo: no CV, token or network required
+The cron expression is `0 11 * * *`: **12:00 Africa/Algiers**. GitHub can delay a
+scheduled start, so completion notifications arrive after execution finishes.
 
-Requires Python 3.11 or later. From PowerShell in this directory:
+## Engineering decisions
+
+### Explainable multilingual matching
+
+The encoder is the revision-pinned
+`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`. Long descriptions
+are split into token windows; window embeddings are mean-pooled and normalized.
+Vectors are cached by text hash and model version, with atomic writes after small
+batches so interrupted runs can reuse completed work.
+
+Python combines five independently inspectable components:
+
+| Component | Default weight |
+| --- | ---: |
+| Semantic similarity | 35% |
+| Skills compatibility | 25% |
+| Experience | 20% |
+| Education | 10% |
+| Location | 10% |
+
+Geography, role compatibility and excessive seniority remain separate eligibility
+checks. A strong semantic similarity cannot override a blocking criterion.
+Recommendations use a default **65/100** threshold; compatible but uncertain
+candidates enter a separate **review** category from **50/100**.
+
+Immutable matching snapshots retain profile and job content hashes, model identity,
+weights and rule fingerprints. Groq or Qwen can summarize the calculated results;
+eligibility, scores and rankings remain in Python. Full CVs and candidate contact
+details are kept out of LLM presentation requests.
+
+### Persistent identity and application state
+
+The schema uses **11 relational tables** to separate source listings, profiles,
+skills, matching snapshots, opportunities, searches and delivery history.
+
+An opportunity is reconciled across searches using normalized company, title and
+locality, with application-URL reconciliation when a title changes. Application
+state survives new descriptions, refreshed scores and repeated collection.
+
+In the dashboard, **Candidater** saves the status before opening the employer's
+page. The offer moves to **Candidatures faites** and can be restored. This records
+the user's click; the external application form is completed on the recruitment
+site. Closed listings leave the available inbox after a complete source snapshot,
+while application history is retained.
+
+### Failure-aware automation
+
+- Each source is collected independently, with bounded requests and retries for
+  transient public-feed errors. A partial collection does not expire missing jobs.
+- An execution lock serializes pipeline runs, and a durable daily record prevents
+  repeated confirmed reports for the same Algerian calendar date.
+- Telegram delivery is reserved in the database before the request. Lost responses
+  are quarantined to avoid automatically repeating an uncertain send.
+- The daily message includes a no-new-opportunities outcome when appropriate.
+  Workflow failures are reported independently of application startup; successful
+  technical status messages are muted.
+
+### Local API boundary and private data
+
+The dashboard binds to **127.0.0.1**, validates request hosts and protects writes
+with a same-origin check and a CSRF token. API responses expose offer metadata and
+matching explanations, with server-side filtering and pagination.
+
+CV PDFs, extracted profiles, credentials, caches and generated reports are ignored
+by Git and excluded from Docker's build context. This README includes aggregate
+validation results and public company/role examples.
+
+## Try the project
+
+### Offline CLI demo
+
+After installing dependencies, the demo runs without credentials, external API
+calls or a model download. It uses **eight synthetic postings**, three example
+profiles and a clearly identified **TF-IDF** baseline:
 
 ```powershell
 py -3.11 -m venv .venv
@@ -83,160 +174,76 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m app evaluate --backend tfidf
 ```
 
-The demo uses eight clearly synthetic postings, three anonymous example orientations,
-SQLite and an explicitly labelled lexical TF-IDF baseline. It previews messages and
-never sends them. It keeps demo data separate from the real local database.
-On Linux/macOS, use `python3.11` and `.venv/bin/python` instead of the Windows paths.
+Demo messages are previewed locally. On Linux/macOS, use `python3.11` and
+`.venv/bin/python` in place of the Windows commands.
 
-## Run with the real CVs and multilingual model
+### React + FastAPI dashboard
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-.\.venv\Scripts\python.exe -m pip install -e '.[dev,postgres,ml]'
-# Copy .env.example to .env if .env does not exist yet.
-.\.venv\Scripts\python.exe -m app import-cvs
-.\.venv\Scripts\python.exe -m app init-db
-.\.venv\Scripts\python.exe -m app run
-.\.venv\Scripts\python.exe -m app match --include-blocked --limit 10
-```
-
-`profiles/resume_manifest.json` maps CV paths to orientations and target roles.
-The import writes gitignored JSON profiles under `profiles/private/`. Review residence,
-work authorization and experience assumptions before using automatic filtering.
-
-The pinned multilingual model is
-`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`. Its model ID, revision,
-batch size and CPU thread count are configurable. Token-window pooling handles long
-text, and cached vectors avoid repeated inference. Vectors are saved atomically after
-each small group of texts, so interrupted runs reuse completed groups. Progress logs
-contain counts only. Initial downloads and cold CPU runs can take several minutes.
-A failed model load does not silently switch to TF-IDF.
-
-## Telegram and LLM configuration
-
-Daily searches now send one Telegram message with a self-contained HTML report of new opportunities,
-profile filters, score explanations and application links. Successful workflow
-status messages are muted; failures still reach Telegram.
-See [reading results and applying (French)](docs/results-fr.md).
-`python -m app report` regenerates a report from saved jobs; add `--send` to
-deliver it once. `python -m app run --notify` collects fresh jobs first.
-
-Fill these fields in the private `.env` file:
-
-```dotenv
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
-LLM_PROVIDER=groq
-GROQ_API_KEY=
-GROQ_BASE_URL=https://api.groq.com/openai/v1
-GROQ_MODEL=openai/gpt-oss-20b
-LLM_ENABLED=false
-```
-
-Groq keys from `console.groq.com` use the Groq settings above. Direct Qwen remains
-available with `LLM_PROVIDER=qwen` and `QWEN_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL`.
-Enable `LLM_ENABLED` after configuring the selected provider. No Telegram account API ID/API hash is
-needed for outbound Bot API messages. Start a conversation with the bot first.
-Use `python scripts/telegram_chat_id.py` after sending `/start job_hunter_setup` to
-discover the private chat ID without exposing the token in a browser URL.
+Requires **Python 3.11+** and **Node.js 22.12+**. Configure your own values
+from [.env.example](.env.example); the default SQLite database supports local setup.
 
 ```powershell
-.\.venv\Scripts\python.exe -m app doctor
-.\.venv\Scripts\python.exe -m app notify
-.\.venv\Scripts\python.exe -m app notify --send
-# Full collection, matching and actual sending:
-.\.venv\Scripts\python.exe -m app run --notify
+.\.venv\Scripts\python.exe -m pip install -r requirements-api.lock -e '.[api,postgres]'
+npm --prefix frontend ci
+npm --prefix frontend run build
+.\.venv\Scripts\python.exe -m scripts.dashboard
 ```
 
-`notify` previews by default. `doctor` checks database connectivity and configuration
-presence; it does not verify API credentials. Qwen receives a small job excerpt and
-calculated results, never the full CVs or candidate contact details.
+Open **http://127.0.0.1:8000**. The backend applies migrations at startup and can
+import already stored matching results into the inbox. To collect live offers,
+configure private profiles and the multilingual runtime using the
+[setup guide](docs/setup-fr.md).
 
-## Configuration and data
+On an installed Windows checkout, [Start Dashboard.cmd](Start%20Dashboard.cmd) or
+`scripts/start-dashboard.ps1` provides a convenient launcher. The
+[dashboard guide](docs/dashboard-fr.md) covers database configuration, development
+mode and application tracking.
 
-| Setting | Default |
-|---|---|
-| Database | `sqlite:///data/job_hunter.db` |
-| Profile input | `profiles/private/*.json`, then the public fallback profile |
-| Embedding backend | Local Sentence Transformers |
-| Score weights | Semantic 35%, skills 25%, experience 20%, education 10%, location 10% |
-| Notification threshold | 65/100 |
-| Telegram delivery | One HTML digest; only opportunities not previously announced |
-| Legacy individual opportunity cap | 10 across all profiles |
-| Counter timezone | `Africa/Algiers` |
-| Default job age window | 45 days; older verified company listings are review candidates |
-| Search scope | Confirmed Algeria positions |
-| Review threshold | 50/100; all review candidates appear in the digest |
-| Career feed page/detail budget | 10 per source |
-| Gmail retrieval | Dedicated label, 14 days, up to 100 messages |
-| Schedule | 12:00 Africa/Algiers, subject to GitHub scheduling delays |
-
-See [.env.example](.env.example) for the complete configuration. Environment variables
-override dotenv files. `--env-file .env.neon` before the command selects a separate
-private PostgreSQL configuration. The weights and thresholds are initial hypotheses.
-
-Eleven tables preserve sources, companies, jobs, profiles, skills, matching snapshots,
-per-profile notification history and shared delivery reservations. Source IDs are
-unique; exact content copies point to a canonical row. Different application URLs
-can remain separate. Delivery groups also reconcile equal company/title/locality
-identities. Missing company jobs expire only after a complete successful snapshot.
-The opportunity inbox and search execution history retain manual application states
-and announcement status independently of refreshed matching snapshots.
-Daily execution history prevents duplicate reports for the same Algerian calendar date;
-ambiguous report delivery requires review rather than an automatic resend.
-
-The notifier persists its reservation before touching Telegram. Ambiguous delivery
-responses are quarantined instead of automatically retried. This avoids automatic
-duplicates after a lost response, but is not an exactly-once delivery guarantee.
-
-## Tests and evaluation
+## Validation and reproducibility
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest --cov=app --cov-report=term-missing -q
+.\.venv\Scripts\python.exe -m pip install -r requirements-api.lock -e '.[dev,api,postgres]'
+.\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\ruff.exe check app tests scripts alembic
 .\.venv\Scripts\ruff.exe format --check app tests scripts alembic
-.\.venv\Scripts\python.exe -m app evaluate
+npm --prefix frontend run build
 ```
 
-Offline tests use mocked HTTP and migrated temporary SQLite databases. An optional
-PostgreSQL integration test runs against a disposable `_test` database when
-`TEST_POSTGRES_URL` is supplied. CI includes PostgreSQL, a container build and a demo.
+Tests cover parsing, geography and seniority rules, duplicate reconciliation,
+notification ambiguity, application transitions, CSRF and database migrations.
+CI also runs the PostgreSQL-specific API queries against an ephemeral PostgreSQL 17
+service, builds the frontend and validates the packaged Docker entry point.
 
-The initial 22 labelled pairs are **illustrative synthetic cases**, authored during
-implementation. They exercise basic positive/negative decisions and are not evidence
-of real-world recommendation quality. Human-reviewed real postings, a held-out test
-set and top-k evaluation remain necessary before making performance claims.
+The initial evaluation set contains **22 illustrative synthetic job–profile
+pairs** for regression checks. Real-world ranking quality still needs a
+human-labelled, held-out dataset and top-k evaluation. Matching scores express
+configured relevance; they are not hiring probabilities.
 
-`requirements-runtime.lock` pins the CPU runtime; `requirements-dev.lock.txt` records
-the development environment. The CPU wheel index is included. `pyproject.toml`
-defines the supported dependency ranges and optional `ml`, `postgres` and `dev` extras.
+The model revision and Python runtime dependencies are pinned; frontend
+dependencies are recorded in `frontend/package-lock.json`. Alembic migrations are
+tested on an isolated Neon branch before production schema changes.
 
-## Hosting
+## Current scope and next steps
 
-The Docker image preloads the pinned model and runs as a non-root user.
-`.github/workflows/daily.yml` runs at `0 11 * * *` (12:00 Algeria), enabled with
-`SCHEDULER_BACKEND=github`. The historical Render blueprint is not the active deployment.
-Manual runs offer a `smoke-test` mode that scores up to 25 recent offers and sends
-the completion report. The default `daily` mode and scheduled runs score up to
-1,000 recent offers.
+Live validation currently covers **Yassir and AYRADE**. The collector framework
+also supports configurable Greenhouse boards. Personal LinkedIn, Emploitic,
+EmploiPartner and AlgerieJob alert parsing is implemented and requires the user's
+[Gmail OAuth and saved-alert setup](docs/gmail-setup.md); those alerts were not
+connected in the recorded execution above.
 
-Use one scheduler. Hosted runs require PostgreSQL and private injected profiles.
-`PIPELINE_ENABLED` and `NOTIFICATIONS_ENABLED` are initially false so an unconfigured
-deployment does not execute against example profiles or lose history in ephemeral SQLite.
-Export private profiles with `python -m app export-profiles`, then store the resulting
-`private/profiles.json` as the hosting secret `PROFILES_JSON`.
+The next development steps are broader verified source coverage, real annotated
+matching evaluation, authentication for a remotely hosted dashboard, and a
+separate application-assistance workflow. Current applications are completed
+manually on the employer's site.
 
-See [the deployment guide](docs/deploy-algeria.md) for the account setup,
-secrets, scheduling, cost considerations and validation limits.
+## Documentation
 
-## Sources and current limits
-
-Listings retain their original source and application URL. See [source access notes](docs/sources.md).
-
-Coverage is not yet comprehensive for Algeria. Geography and skill rules are
-conservative heuristics with a finite vocabulary; ambiguous cases need review.
-Alert email layouts can change and snippets may omit requirements. Real annotated
-evaluation and expansion of the curated company registry remain ongoing work.
-
-Private PDFs, extracted profiles, secrets, caches and real job data are excluded
-from Git and Docker. This public repository contains only examples and source code.
+| Guide | Contents |
+| --- | --- |
+| [Setup — FR](docs/setup-fr.md) | Local installation and CV import |
+| [Dashboard — FR](docs/dashboard-fr.md) | Control centre, application state and refresh behaviour |
+| [Matching](docs/matching.md) | Embeddings, rules, score components and evaluation limits |
+| [Source access](docs/sources.md) | Connected sources and collection boundaries |
+| [Cloud execution](docs/deploy-algeria.md) | GitHub Actions, Neon, secrets and scheduling |
+| [Gmail setup](docs/gmail-setup.md) | One-time OAuth and saved-alert configuration |
+| [Reading results — FR](docs/results-fr.md) | Telegram reports and score interpretation |
